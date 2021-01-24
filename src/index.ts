@@ -1,12 +1,18 @@
 import {ActionsType, ActionType, VNode, app, h, Component, Children } from 'hyperapp';
 
+declare global {
+  namespace JSX {
+    interface Element extends RyperComponentResult, VNode<any> {}
+  }
+}
+
 type refType = {current: Element | any};
 
 type effectType = {callback: Function | null};
 
 type RyperActionsType<State, Actions> = ActionsType<State, Actions> & {
   change: ActionType<any, State, Actions>,
-  getState: ActionType<any, State, Actions>
+  getState: ActionType<any, State, Actions>,
 }
 
 interface RyperAttributes {
@@ -28,8 +34,8 @@ interface RyperComponent extends Component {
   (attributes: RyperAttributes, children: Array<Children | Children[]>): RyperComponentResult
 }
 
-const React = (<State, Actions>() => {
-  let rootActions: RyperActionsType<State, Actions>;
+const React = (() => {
+  let rootActions: any;
 
   let hookIdx = 0;
   let hooks:Array<any> = [];
@@ -96,11 +102,11 @@ const React = (<State, Actions>() => {
     return () => (
       typeof type === 'function'
         ? componentRender(type, newProps, children)
-       : elementRender(type, newProps, children)
+        : elementRender(type, newProps, children)
     );
   };
 
-  const createActions = (actions: ActionsType<State, Actions>): RyperActionsType<State, Actions> => ({
+  const createActions = <State, Actions>(actions: ActionsType<State, Actions>): RyperActionsType<State, Actions> => ({
     ...actions,
     change: () => (state) => ({...state}),
     getState: () => (state) => (state)
@@ -115,7 +121,7 @@ const React = (<State, Actions>() => {
     return view;
   };
 
-  const render = (state: State, actions: ActionsType<State, Actions>, view: () => VNode, container: Element | null): RyperActionsType<State, Actions> => {
+  const render = <State, Actions>(state: State, actions: ActionsType<State, Actions>, view: RyperComponentResult, container: Element | null): RyperActionsType<State, Actions> => {
     const wiredActions = app<State, RyperActionsType<State, Actions>>(
       state,
       createActions(actions),
@@ -173,11 +179,20 @@ const React = (<State, Actions>() => {
     return selector ? selector(state) : state;
   };
 
-  const getActions = (selector?: keyof Actions) : RyperActionsType<State, Actions> | RyperActionsType<State, Actions>[keyof Actions] => {
+  const getActions = (selector?: string): any => {
     return selector ? rootActions[selector] : rootActions;
   }
 
   return {render, createElement, useState, useRef, useEffect, getState, getActions};
 })();
+
+export const {
+  useState,
+  useRef,
+  useEffect,
+  getState,
+  getActions
+} = React;
+
 
 export default React;
