@@ -10,8 +10,8 @@
     "declaration": true,
     // "target": "es2015",
     // "module": "es2015",
-    // "noImplicitAny": true,
-    // "strict": true
+    "noImplicitAny": true,
+    "strict": true
   },
   "include": [
     "src/**/*"
