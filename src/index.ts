@@ -142,7 +142,7 @@ const React = (() => {
       reRender && rootActions.change();
       return hooks[_idx];
     }
-    const state = hooks[hookIdx] || setState(initValue, false);
+    const state = hooks[hookIdx] !== undefined ? hooks[hookIdx] : setState(initValue, false);
     hookIdx++;
     return [state, setState];
   };
