@@ -121,11 +121,11 @@ const React = (() => {
     return view;
   };
 
-  const render = <State, Actions>(state: State, actions: ActionsType<State, Actions>, view: RyperComponentResult, container: Element | null): RyperActionsType<State, Actions> => {
+  const render = <State, Actions>(state: State, actions: ActionsType<State, Actions>, view: VNode, container: Element | null): RyperActionsType<State, Actions> => {
     const wiredActions = app<State, RyperActionsType<State, Actions>>(
       state,
       createActions(actions),
-      () => createComponent(view()),
+      () => createComponent(view),
       container
     );
 
@@ -162,8 +162,8 @@ const React = (() => {
       depArray.push({callback: null});
     }
 
-    if (hasChanged) setTimeout(() => {
-      const callback = cb();
+    if (hasChanged) setTimeout(async () => {
+      const callback = await cb();
       const destroy:effectType = depArray[depArray.length - 1];
       destroy.callback = callback;
     });
