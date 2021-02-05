@@ -2,7 +2,7 @@ import {ActionsType, ActionType, VNode, app, h, Component, Children } from 'hype
 
 declare global {
   namespace JSX {
-    interface Element extends RyperComponentResult, VNode<any> {}
+    interface Element extends RyperComponentResult<unknown, unknown>, VNode<any> {}
   }
 }
 
@@ -26,12 +26,12 @@ interface RyperVNode extends VNode {
   attributes: RyperAttributes
 }
 
-interface RyperComponentResult {
-  (): RyperVNode
+interface RyperComponentResult<State, Actions> {
+  (state?: State, actions?: Actions, props?: any, children?: Array<Children | Children[]>): RyperVNode
 }
 
-interface RyperComponent extends Component {
-  (attributes: RyperAttributes, children: Array<Children | Children[]>): RyperComponentResult
+interface RyperComponent<State, Actions> extends Component {
+  (attributes: RyperAttributes, children: Array<Children | Children[]>): RyperComponentResult<State, Actions>
 }
 
 const React = (() => {
@@ -46,7 +46,7 @@ const React = (() => {
 
   let elements:RyperVNode[] = [];
 
-  const componentRender = (type: RyperComponent, props:RyperAttributes, children: Array<Children | Children[]>): RyperVNode => {
+  const componentRender = <State, Actions>(type: RyperComponent<State, Actions>, props:RyperAttributes, children: Array<Children | Children[]>): RyperVNode => {
     const elFn = type(props, children);
     const el = elFn();
 
@@ -95,15 +95,24 @@ const React = (() => {
     return el;
   };
 
-  const createElement = <Attributes>(type: RyperComponent | string, props: Attributes, ...children: Array<Children | Children[]>): RyperComponentResult => {
+  const createElement = <Attributes, State, Actions>(type: RyperComponent<State, Actions> | string, props: Attributes, ...children: Array<Children | Children[]>): RyperComponentResult<State, Actions> => {
     const defaultProps = {oncreate: null, ondestroy: null, ref: null};
     const newProps: RyperAttributes = {...defaultProps, ...props};
 
-    return () => (
-      typeof type === 'function'
-        ? componentRender(type, newProps, children)
-        : elementRender(type, newProps, children)
-    );
+    return (...params) => {
+      const[,, addProps = {}, addChildren = []] = params;
+      
+      const newAddProps = {...newProps, ...addProps};
+      const newAddChildren = [...children, ...addChildren];
+
+      return typeof type === 'function'
+        ? componentRender(type, newAddProps, newAddChildren)
+        : elementRender(type, newAddProps, newAddChildren)
+    };
+  };
+
+  const cloneElement = <Attributes, State, Actions>(component: RyperComponentResult<State, Actions>, props?: Attributes, ...children: Array<Children | Children[]>): RyperVNode => {
+    return component(undefined, undefined, props, children);
   };
 
   const createActions = <State, Actions>(actions: ActionsType<State, Actions>): RyperActionsType<State, Actions> => ({
@@ -183,7 +192,7 @@ const React = (() => {
     return selector ? rootActions[selector] : rootActions;
   }
 
-  return {render, createElement, useState, useRef, useEffect, getState, getActions};
+  return {render, createElement, cloneElement, useState, useRef, useEffect, getState, getActions};
 })();
 
 export const {
