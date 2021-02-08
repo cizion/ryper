@@ -7,15 +7,15 @@
     "react",
     "react-hooks"
   ],
-  "homepage": "https://github.com/devskinshy/ryper",
+  "homepage": "https://github.com/cizion/ryper",
   "bugs": {
-    "url": "https://github.com/devskinshy/ryper/issues",
-    "email": "yyshgk12@gmail.com"
+    "url": "https://github.com/cizion/ryper/issues",
+    "email": "dev@cizion.com"
   },
-  "author": "devskinshy <yyshgk12@gmail.com/> (https://devskinshy.github.io/)",
+  "author": "cizion <dev@cizion.com/> (https://github.com/cizion/ryper/)",
   "repository": {
     "type": "git",
-    "url": "https://github.com/devskinshy/ryper.git"
+    "url": "https://github.com/cizion/ryper.git"
   },
   "main": "./dist/index.js",
   "scripts": {
