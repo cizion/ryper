@@ -112,7 +112,7 @@ const React = (() => {
   };
 
   const cloneElement = <Attributes, State, Actions>(component: RyperComponentResult<State, Actions>, props?: Attributes, ...children: Array<Children | Children[]>): RyperVNode => {
-    return component(undefined, undefined, props, children);
+    return typeof component === 'function' ? component(undefined, undefined, props, children) : component;
   };
 
   const createActions = <State, Actions>(actions: ActionsType<State, Actions>): RyperActionsType<State, Actions> => ({
