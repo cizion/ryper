@@ -1,10 +1,10 @@
 import {ActionsType, app, Children, Component, h, VNode} from 'hyperapp';
 
 type refsType<Value> = {current: Element | Value};
-type effectCallback = (_el:Element) => void;
-type effectCb = (_el:Element) => void | effectCallback;
-type effectsType<Value> = {_el:Element, depArray:Array<Value>, callback:null|effectCallback};
-type effectType<Value> = {cb: effectCb, depArray: Array<Value>} | null;
+// type effectCallback = (_el:Element) => void | Promise<void>;
+// type effectCb = (_el:Element) => void | effectCallback | Promise<void | effectCallback>;
+type effectsType<Value> = {_el:Element, depArray:Array<Value>, callback:null|Function};
+type effectType<Value> = {cb: Function, depArray: Array<Value>} | null;
 
 interface RyperAttributes {
   oncreate?: null | ((_el: Element) => void),
@@ -48,6 +48,9 @@ const React = (() => {
 
     const oldCreate = elementProps.oncreate;
     elementProps.oncreate = (_el) => {
+      hooks.splice(_hookIdx - _hook.length, _hook.length, ..._hook);
+      rootActions.change();
+
       if(_effect) {
         const {cb, depArray} = _effect;
         let e:effectsType<null> = {_el, depArray, callback : null};
@@ -57,9 +60,6 @@ const React = (() => {
       }
 
       oldCreate && oldCreate(_el);
-
-      hooks.splice(_hookIdx - _hook.length, _hook.length, ..._hook);
-      rootActions.change();
     }
 
     const oldUpdate = elementProps.onupdate;
@@ -170,14 +170,14 @@ const React = (() => {
     refs.push(ref);
     return ref;
   };
-  const useEffect = <Value>(cb:effectCb, depArray:Array<Value>) => {
+  const useEffect = <Value>(cb:Function, depArray:Array<Value>) => {
     effect = {cb, depArray};
   };
-  const getState = <Result>(selector:(state:any) => Result):Result => {
+  const getState = (selector?:(state?:any) => any):any => {
     const state = rootActions.getState();
     return selector ? selector(state) : state;
   };
-  const getActions = (selector: keyof typeof rootActions):any => {
+  const getActions = (selector?: keyof typeof rootActions):any => {
     return selector ? rootActions[selector] : rootActions;
   }
 
