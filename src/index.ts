@@ -50,7 +50,7 @@ const React = (() => {
     const _hookIdx = hookIdx;
     const _hook = hook;
 
-    const oldCreate = elementProps.oncreate;
+    // const oldCreate = elementProps.oncreate;
     elementProps.oncreate = async (_el) => {
       hooks.splice(_hookIdx - _hook.length, _hook.length, ..._hook);
       rootActions.change();
@@ -63,10 +63,10 @@ const React = (() => {
         cb && (e.callback = (await cb(_el)) || null);
       }
 
-      oldCreate && oldCreate(_el);
+      // oldCreate && oldCreate(_el);
     };
 
-    const oldUpdate = elementProps.onupdate;
+    // const oldUpdate = elementProps.onupdate;
     elementProps.onupdate = async (_el) => {
       if (_effect) {
         const { cb, depArray } = _effect;
@@ -77,15 +77,15 @@ const React = (() => {
           hasChanged && (await cb(_el), (e.depArray = depArray));
         }
       }
-      oldUpdate && oldUpdate(_el);
+      // oldUpdate && oldUpdate(_el);
     };
 
-    const oldDestroy = elementProps.ondestroy;
+    // const oldDestroy = elementProps.ondestroy;
     elementProps.ondestroy = async (_el) => {
       let e = effects.find((e) => e._el === _el);
       e?.callback && (await e.callback(_el));
 
-      oldDestroy && oldDestroy(_el);
+      // oldDestroy && oldDestroy(_el);
     };
 
     effect = null;
@@ -100,21 +100,21 @@ const React = (() => {
   ): VNode<RyperAttributes> => {
     const el = h(type, props, ...children);
 
-    const oldCreate = props.oncreate;
+    // const oldCreate = props.oncreate;
     props.oncreate = (_el) => {
       props.ref && (props.ref.current = _el);
-      oldCreate && oldCreate(_el);
+      // oldCreate && oldCreate(_el);
     };
 
-    const oldUpdate = props.onupdate;
+    // const oldUpdate = props.onupdate;
     props.onupdate = (_el) => {
       props.ref && (props.ref.current = _el);
-      oldUpdate && oldUpdate(_el);
+      // oldUpdate && oldUpdate(_el);
     };
 
-    const oldDestroy = props.ondestroy;
+    // const oldDestroy = props.ondestroy;
     props.ondestroy = (_el) => {
-      oldDestroy && oldDestroy(_el);
+      // oldDestroy && oldDestroy(_el);
     };
 
     elements.push(el);
