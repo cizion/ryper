@@ -163,15 +163,15 @@ const React = (() => {
   };
   const useState = <Value>(initValue: Value): [value: Value, setState: (newValue: Value) => Value] => {
     const _idx = hookIdx;
-    const setState = (newVal: Value) => {
+    const setState = (newVal: Value, flag = true) => {
       if (hooks[_idx] === newVal) {
         return hooks[_idx];
       }
       hooks[_idx] = newVal;
-      rootActions.change();
+      flag && rootActions.change();
       return hooks[_idx];
     };
-    const state = hooks[hookIdx] !== undefined ? hooks[hookIdx] : initValue;
+    const state = hooks[hookIdx] !== undefined ? hooks[hookIdx] : setState(initValue, false);
 
     hookIdx++;
     hook.push(initValue);
