@@ -36,11 +36,7 @@ const React = (() => {
 
   let elements: Array<VNode<RyperAttributes>> = [];
 
-  const componentRender = <State, Actions>(
-    type: RyperComponent<State, Actions>,
-    props: RyperAttributes,
-    chlidren: Array<Children | Children[]>
-  ): VNode<RyperAttributes> => {
+  const componentRender = <State, Actions>(type: RyperComponent<State, Actions>, props: RyperAttributes, chlidren: Array<Children | Children[]>): VNode<RyperAttributes> => {
     const el = type(props, chlidren)();
 
     const element = elements[elements.length - 1];
@@ -93,11 +89,7 @@ const React = (() => {
 
     return el;
   };
-  const elementRender = (
-    type: string,
-    props: RyperAttributes,
-    children: Array<Children | Children[]>
-  ): VNode<RyperAttributes> => {
+  const elementRender = (type: string, props: RyperAttributes, children: Array<Children | Children[]>): VNode<RyperAttributes> => {
     const el = h(type, props, ...children);
 
     const oldCreate = props.oncreate;
@@ -120,20 +112,14 @@ const React = (() => {
     elements.push(el);
     return el;
   };
-  const createElement = <State, Actions>(
-    type: RyperComponent<State, Actions> | string,
-    props: RyperAttributes,
-    ...children: Array<Children | Children[]>
-  ): RyperComponentResult<State, Actions> => {
+  const createElement = <State, Actions>(type: RyperComponent<State, Actions> | string, props: RyperAttributes, ...children: Array<Children | Children[]>): RyperComponentResult<State, Actions> => {
     return (...params) => {
       const [, , addProps = {}, addChildren = []] = params;
 
       const newAddProps = { ...props, ...addProps };
       const newAddChildren = [...children, ...addChildren];
 
-      return typeof type === "function"
-        ? componentRender(type, newAddProps, newAddChildren)
-        : elementRender(type, newAddProps, newAddChildren);
+      return typeof type === "function" ? componentRender(type, newAddProps, newAddChildren) : elementRender(type, newAddProps, newAddChildren);
     };
   };
   const createActions = <State, Actions>(actions: ActionsType<State, Actions>): ActionsType<State, Actions> => {
@@ -143,11 +129,7 @@ const React = (() => {
       getState: () => (state) => state,
     };
   };
-  const cloneElement = <State, Actions>(
-    component: RyperComponentResult<State, Actions>,
-    props?: RyperAttributes,
-    ...children: Array<Children | Children[]>
-  ): VNode<RyperAttributes> => {
+  const cloneElement = <State, Actions>(component: RyperComponentResult<State, Actions>, props?: RyperAttributes, ...children: Array<Children | Children[]>): VNode<RyperAttributes> => {
     return typeof component === "function" ? component(undefined, undefined, props, children) : component;
   };
   const init = (view: VNode): VNode => {
@@ -158,7 +140,7 @@ const React = (() => {
 
     return view;
   };
-  const render = <State, Actions>(state: State, actions: ActionsType<State, Actions>, view: VNode, container: Element) => {
+  const render = <State, Actions>(state: State, actions: ActionsType<State, Actions>, view: VNode, container: Element | null) => {
     rootActions = app<State, Actions>(state, createActions(actions), () => init(view), container);
   };
   const useState = <Value>(initValue: Value): [value: Value, setState: (newValue: Value) => Value] => {
