@@ -168,12 +168,12 @@ const React = (() => {
   const useEffect = <Value>(cb: Function, depArray: Array<Value>) => {
     effect = { cb, depArray };
   };
-  const getState = (selector?: (state?: any) => any): any => {
+  const getState = (selector?: (state: any) => any): any => {
     const state = rootActions.getState();
     return selector ? selector(state) : state;
   };
-  const getActions = (selector?: keyof typeof rootActions): any => {
-    return selector ? rootActions[selector] : rootActions;
+  const getActions = (selector?: (state: any) => any): any => {
+    return selector ? selector(rootActions) : rootActions;
   };
 
   return { render, createElement, cloneElement, useState, useRef, useEffect, getState, getActions };
