@@ -97,7 +97,7 @@ const React = (() => {
 
     const oldDestroy = elementProps.ondestroy;
     elementProps.ondestroy = async (_el) => {
-      hooks.splice(_hookIdx - _hook.length, _hook.length);
+      hooks.splice(_hookIdx - _hook.length, _hook.length, ...hook);
       let e = effects.find((e) => e._el === _el);
       e?.callback && (await e.callback(_el), (e.callback = null));
 
