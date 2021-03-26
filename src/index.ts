@@ -34,8 +34,18 @@ interface RyperComponent<State, Actions> extends Component {
   ): RyperComponentResult<State, Actions>;
 }
 
+declare global {
+  interface Window {
+    hooks: Array<any>;
+  }
+}
+
 const React = (() => {
   let rootActions: any;
+
+  let flag = false;
+  let timer: number;
+  let deleteCount = 0;
 
   let hookIdx = 0;
   let hooks: Array<any> = [];
@@ -53,53 +63,81 @@ const React = (() => {
     props: RyperAttributes,
     chlidren: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
-    const el = type(props, chlidren)();
+    // const _oldHookIdx = hookIdx;
+    // const _oldHook = hook;
+
+    let el;
+    try {
+      el = type(props, chlidren)();
+    } catch (error) {
+      hooks.splice(hookIdx - hook.length, hook.length, ...hook);
+      hookIdx = hookIdx - hook.length;
+      hook = [];
+      el = type(props, chlidren)();
+    }
 
     const element = elements[elements.length - 1];
     const elementProps = element.attributes || (element.attributes = {});
 
     const _effect = effect;
-    const _hookIdx = hookIdx;
-    const _hook = hook;
+    const _newHookIdx = hookIdx;
+    const _newHook = hook;
 
     const oldCreate = elementProps.oncreate;
     elementProps.oncreate = async (_el) => {
-      hooks.splice(_hookIdx - _hook.length, _hook.length, ..._hook);
-      rootActions.change();
+      hooks.splice(_newHookIdx - _newHook.length, _newHook.length, ..._newHook);
 
-      if (_effect) {
-        const { cb, depArray } = _effect;
-        let e: effectsType<null> = { _el, depArray, callback: null };
-        effects.push(e);
+      setTimeout(async () => {
+        if (_effect) {
+          const { cb, depArray } = _effect;
+          let e: effectsType<null> = { _el, depArray, callback: null };
+          effects.push(e);
 
-        cb && (e.callback = (await cb(_el)) || null);
-      }
+          cb && (e.callback = (await cb(_el)) || null);
+        }
+      });
 
       oldCreate && oldCreate(_el);
     };
 
     const oldUpdate = elementProps.onupdate;
     elementProps.onupdate = async (_el) => {
-      if (_effect) {
-        const { cb, depArray } = _effect;
-        let e = effects.find((e) => e._el === _el);
+      setTimeout(async () => {
+        if (_effect) {
+          const { cb, depArray } = _effect;
+          let e = effects.find((e) => e._el === _el);
 
-        if (e) {
-          const hasChanged = !!(
-            e.depArray.length &&
-            depArray.some((dep, i) => !Object.is(dep, e?.depArray[i]))
-          );
-          hasChanged && (await cb(_el), (e.depArray = depArray));
+          if (e) {
+            const hasChanged = !!(
+              e.depArray.length &&
+              depArray.some((dep, i) => !Object.is(dep, e?.depArray[i]))
+            );
+            hasChanged && (await cb(_el), (e.depArray = depArray));
+          }
         }
-      }
+      });
+
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        !flag && rootActions.change();
+        flag = !flag;
+      });
+
       oldUpdate && oldUpdate(_el);
     };
 
     const oldDestroy = elementProps.ondestroy;
     elementProps.ondestroy = async (_el) => {
-      hooks.splice(_hookIdx - _hook.length, _hook.length, ...hook);
-      let e = effects.find((e) => e._el === _el);
-      e?.callback && (await e.callback(_el), (e.callback = null));
+      hooks.splice(
+        _newHookIdx - _newHook.length - deleteCount,
+        _newHook.length
+      );
+      deleteCount += _newHook.length;
+
+      setTimeout(async () => {
+        let e = effects.find((e) => e._el === _el);
+        e?.callback && (await e.callback(_el), (e.callback = null));
+      });
 
       oldDestroy && oldDestroy(_el);
     };
@@ -171,10 +209,13 @@ const React = (() => {
       : component;
   };
   const init = (view: VNode): VNode => {
+    deleteCount = 0;
     hookIdx = 0;
     effect = null;
     elements = [];
     refs = [];
+
+    window.hooks = hooks;
 
     return view;
   };
