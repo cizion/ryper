@@ -1,6 +1,6 @@
 import { ActionsType, app, Children, Component, h, VNode } from "hyperapp";
 
-type refsType<Value> = { current: Element | Value };
+type refsType<Value> = { current: Value };
 // type effectCallback = (_el:Element) => void | Promise<void>;
 // type effectCb = (_el:Element) => void | effectCallback | Promise<void | effectCallback>;
 type effectsType<Value> = {
