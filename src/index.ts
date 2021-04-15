@@ -56,6 +56,7 @@ const React = (() => {
     };
   };
   const init = (view: VNode): VNode => {
+    console.log("init");
     return view;
   };
   const render = <State, Actions>(
