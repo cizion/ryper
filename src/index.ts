@@ -6,14 +6,26 @@ declare global {
   }
 }
 
-interface Refs<Value> {
+interface Ref<Value> {
   current: Value;
+}
+interface Effect<Value> {
+  cb: Function;
+  depArray: Array<Value>;
+}
+interface EffectResult<Value> {
+  depArray: Array<Value>;
+  callback: null | Function;
+}
+interface Effects<Value> {
+  _el: Element;
+  results: Array<EffectResult<Value>>;
 }
 interface RyperAttributes {
   oncreate?: null | ((_el: Element) => void);
   onupdate?: null | ((_el: Element) => void);
   ondestroy?: null | ((_el: Element) => void);
-  ref?: null | Refs<any>;
+  ref?: null | Ref<any>;
   [key: string]: any;
 }
 interface V2VNode {
@@ -47,9 +59,16 @@ const React = (() => {
   let hooks: Array<any> = [];
   let hook: Array<any> = [];
 
+  let effects: Array<Effects<any>> = [];
+  let effect: Array<Effect<any>> = [];
+
+  let refs: Array<Ref<any>> = [];
+
+  let elements: Array<VNode<RyperAttributes>> = [];
+
   const isUndefined = <Value>(value: Value) => {
     return value === undefined;
-  }
+  };
   const isV2VNode = (elFn: V2VNode | any): elFn is V2VNode => {
     const V2NodeKeys = ["type", "props", "children", "node", "tag", "key"];
     return (
@@ -66,25 +85,21 @@ const React = (() => {
   ): type is RyperComponent<State, Actions> => {
     return typeof type === "function";
   };
-  const getVNode = <State, Actions>(
-    type: RyperComponent<State, Actions>,
-    props: RyperAttributes,
-    children: Array<Children | Children[]>
-  ): VNode<RyperAttributes> => {
-    let elFn: RyperComponentResult<State, Actions> | V2VNode | any = type(
-      props,
-      children
-    );
+  const getVNode = (elFn: any): VNode<RyperAttributes> => {
     let el: VNode<RyperAttributes>;
-    if (isRyperComponentResult(elFn)) {
+
+    let componentFlag = isRyperComponentResult(elFn);
+    let v2Flag = isV2VNode(elFn);
+
+    if (componentFlag) {
       el = elFn();
-    } else if (isV2VNode(elFn)) {
-      const { key, children, tag, props } = elFn;
+    } else if (v2Flag) {
+      const { children, tag, props } = elFn;
       el = {
         nodeName: tag,
         attributes: props,
         children,
-        key,
+        key: 1234,
       };
     } else {
       el = elFn;
@@ -98,10 +113,45 @@ const React = (() => {
   ): VNode<RyperAttributes> => {
     let el;
     try {
-      el = getVNode(type, props, children);
+      const elFn = type(props, children);
+      console.log(elFn, type);
+      el = getVNode(elFn);
+      if (!isRyperComponentResult(elFn)) {
+        console.log("?");
+        return el;
+      }
+      console.log("?ㅇㅣ게 말이 됨?", elFn, isRyperComponentResult(elFn), el);
     } catch (error) {
-      el = getVNode(type, props, children);
+      const elFn = type(props, children);
+      el = getVNode(elFn);
+      if (!isRyperComponentResult(elFn)) {
+        return el;
+      }
     }
+
+    const element = elements[elements.length - 1];
+    // const elementProps = element.attributes || (element.attributes = {});
+
+    // const oldCreate = elementProps.oncreate;
+    // elementProps.oncreate = async (_el) => {
+    //   oldCreate && oldCreate(_el);
+    // };
+
+    // const oldUpdate = elementProps.onupdate;
+    // elementProps.onupdate = async (_el) => {
+    //   oldUpdate && oldUpdate(_el);
+    // };
+
+    // const oldDestroy = elementProps.ondestroy;
+    // elementProps.ondestroy = async (_el) => {
+    //   oldDestroy && oldDestroy(_el);
+    // };
+
+    console.log(element, effects);
+
+    effect = [];
+    hook = [];
+
     return el;
   };
   const elementRender = <State, Actions>(
@@ -109,7 +159,25 @@ const React = (() => {
     props: RyperAttributes,
     children: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
+    const oldCreate = props.oncreate;
+    props.oncreate = (_el) => {
+      props.ref && (props.ref.current = _el);
+      oldCreate && oldCreate(_el);
+    };
+
+    const oldUpdate = props.onupdate;
+    props.onupdate = (_el) => {
+      props.ref && (props.ref.current = _el);
+      oldUpdate && oldUpdate(_el);
+    };
+
+    const oldDestroy = props.ondestroy;
+    props.ondestroy = (_el) => {
+      oldDestroy && oldDestroy(_el);
+    };
+
     const el = h(type, props, ...children);
+    elements.push(el);
 
     return el;
   };
@@ -138,6 +206,18 @@ const React = (() => {
   };
   const init = (view: VNode): VNode => {
     console.log("init");
+
+    hookIdx = 0;
+
+    refs = [];
+
+    effects = [];
+    effect = [];
+
+    elements = [];
+
+    window.hooks = hooks;
+
     return view;
   };
   const render = <State, Actions>(
@@ -153,16 +233,35 @@ const React = (() => {
       container
     );
   };
-  const useState = <Value>(initValue: Value):[value: Value, setState: (newValue: Value) => Value]  => {
+  const useState = <Value>(
+    initValue: Value
+  ): [value: Value, setState: (newValue: Value) => Value] => {
     const _idx = hookIdx;
 
-    const setState = (newValue: Value, falg = true) => {
-      
-    }
+    const setState = (newValue: Value, flag = true) => {
+      if (hooks[_idx] !== newValue) {
+        hooks[_idx] = newValue;
+        flag && rootActions.change();
+      }
 
-    const state = isUndefined() ? : 
+      return hooks[_idx];
+    };
 
-    return [initValue, setState];
+    const nowValue = hooks[hookIdx];
+    const state = isUndefined(nowValue) ? setState(initValue, false) : nowValue;
+
+    hookIdx++;
+    hook.push(initValue);
+
+    return [state, setState];
+  };
+  const useRef = <Value>(value: Value): Ref<Value> => {
+    const ref: Ref<Value> = { current: value };
+    refs.push(ref);
+    return ref;
+  };
+  const useEffect = <Value>(cb: Function, depArray: Array<Value>) => {
+    effect.push({ cb, depArray });
   };
   const getState = (selector?: (state: any) => any): any => {
     const state = rootActions.getState();
@@ -172,9 +271,17 @@ const React = (() => {
     return selector ? selector(rootActions) : rootActions;
   };
 
-  return { render, createElement, getState, getActions };
+  return {
+    render,
+    createElement,
+    useState,
+    useRef,
+    useEffect,
+    getState,
+    getActions,
+  };
 })();
 
-export const { getState, getActions } = React;
+export const { useState, useRef, useEffect, getState, getActions } = React;
 
 export default React;
