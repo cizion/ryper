@@ -3,6 +3,7 @@ import { ActionsType, app, Children, Component, h, VNode } from "hyperapp";
 declare global {
   interface Window {
     hooks: Array<any>;
+    effects: Array<any>;
   }
 }
 
@@ -19,7 +20,7 @@ interface EffectResult<Value> {
 }
 interface Effects<Value> {
   _el: Element;
-  results: Array<EffectResult<Value>>;
+  results: Array<Promise<EffectResult<Value>>>;
 }
 interface RyperAttributes {
   oncreate?: null | ((_el: Element) => void);
@@ -49,7 +50,8 @@ interface RyperComponentResult<State, Actions> {
 interface RyperComponent<State, Actions> extends Component {
   (attributes: RyperAttributes, children: Array<Children | Children[]>):
     | RyperComponentResult<State, Actions>
-    | V2VNode;
+    | V2VNode
+    | any;
 }
 
 const React = (() => {
@@ -85,25 +87,29 @@ const React = (() => {
   ): type is RyperComponent<State, Actions> => {
     return typeof type === "function";
   };
-  const getVNode = (elFn: any): VNode<RyperAttributes> => {
+  const getVNode = <State, Actions>(
+    type: RyperComponent<State, Actions>,
+    props: RyperAttributes,
+    children: Array<Children | Children[]>
+  ): VNode<RyperAttributes> => {
+    let elFn = type(props, children);
     let el: VNode<RyperAttributes>;
 
-    let componentFlag = isRyperComponentResult(elFn);
-    let v2Flag = isV2VNode(elFn);
-
-    if (componentFlag) {
+    if (isRyperComponentResult(elFn)) {
       el = elFn();
-    } else if (v2Flag) {
-      const { children, tag, props } = elFn;
+    } else if (isV2VNode(elFn)) {
+      const { key, children, tag, props } = elFn;
       el = {
         nodeName: tag,
         attributes: props,
         children,
-        key: 1234,
+        key,
       };
     } else {
       el = elFn;
     }
+    elements.push(el);
+
     return el;
   };
   const componentRender = <State, Actions>(
@@ -113,41 +119,38 @@ const React = (() => {
   ): VNode<RyperAttributes> => {
     let el;
     try {
-      const elFn = type(props, children);
-      console.log(elFn, type);
-      el = getVNode(elFn);
-      if (!isRyperComponentResult(elFn)) {
-        console.log("?");
-        return el;
-      }
-      console.log("?ㅇㅣ게 말이 됨?", elFn, isRyperComponentResult(elFn), el);
+      el = getVNode(type, props, children);
     } catch (error) {
-      const elFn = type(props, children);
-      el = getVNode(elFn);
-      if (!isRyperComponentResult(elFn)) {
-        return el;
-      }
+      el = getVNode(type, props, children);
     }
 
-    const element = elements[elements.length - 1];
-    // const elementProps = element.attributes || (element.attributes = {});
+    const elementProps = el.attributes || (el.attributes = {});
+    const _effect = effect;
 
-    // const oldCreate = elementProps.oncreate;
-    // elementProps.oncreate = async (_el) => {
-    //   oldCreate && oldCreate(_el);
-    // };
+    const oldCreate = elementProps.oncreate;
+    elementProps.oncreate = async (_el) => {
+      setTimeout(async () => {
+        const results = _effect.map(async ({ cb, depArray }) => {
+          let e: EffectResult<null> = { depArray, callback: null };
+          cb && (e.callback = await cb(_el));
+          return e;
+        });
 
-    // const oldUpdate = elementProps.onupdate;
-    // elementProps.onupdate = async (_el) => {
-    //   oldUpdate && oldUpdate(_el);
-    // };
+        effects.push({ _el, results });
+      });
 
-    // const oldDestroy = elementProps.ondestroy;
-    // elementProps.ondestroy = async (_el) => {
-    //   oldDestroy && oldDestroy(_el);
-    // };
+      oldCreate && oldCreate(_el);
+    };
 
-    console.log(element, effects);
+    const oldUpdate = elementProps.onupdate;
+    elementProps.onupdate = async (_el) => {
+      oldUpdate && oldUpdate(_el);
+    };
+
+    const oldDestroy = elementProps.ondestroy;
+    elementProps.ondestroy = async (_el) => {
+      oldDestroy && oldDestroy(_el);
+    };
 
     effect = [];
     hook = [];
@@ -177,7 +180,6 @@ const React = (() => {
     };
 
     const el = h(type, props, ...children);
-    elements.push(el);
 
     return el;
   };
@@ -205,8 +207,6 @@ const React = (() => {
     };
   };
   const init = (view: VNode): VNode => {
-    console.log("init");
-
     hookIdx = 0;
 
     refs = [];
@@ -217,6 +217,7 @@ const React = (() => {
     elements = [];
 
     window.hooks = hooks;
+    window.effects = effects;
 
     return view;
   };
