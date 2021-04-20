@@ -127,10 +127,14 @@ const React = (() => {
     }
 
     const elementProps = el.attributes || (el.attributes = {});
+    // const _hookIdx = hookIdx;
+    // const _hook = hook;
     const _effect = effect;
 
     const oldCreate = elementProps.oncreate;
     elementProps.oncreate = (_el) => {
+      console.log("create");
+      // hooks.splice(_hookIdx - _hook.length, _hook.length, ..._hook);
       setTimeout(() => {
         const results = _effect.map(({ cb, depArray }) => {
           let e: EffectResult<null> = { depArray, callback: null };
@@ -148,7 +152,7 @@ const React = (() => {
     elementProps.onupdate = (_el) => {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        console.log("aaa");
+        console.log("aaa", effects);
       });
       oldUpdate && oldUpdate(_el);
     };
@@ -156,10 +160,15 @@ const React = (() => {
     const oldDestroy = elementProps.ondestroy;
     elementProps.ondestroy = (_el) => {
       setTimeout(() => {
-        let e = effects.find((e) => e._el === _el);
-        let results = e?.results || [];
-        results.forEach(({ callback }) => {
-          callback && callback(_el);
+        effects
+          .filter((e) => e._el === _el)
+          .forEach(({ results = [] }) => {
+            results.forEach(({ callback }) => {
+              callback && callback(_el);
+            });
+          });
+        effects = effects.filter((e) => {
+          return e._el !== _el;
         });
       });
       oldDestroy && oldDestroy(_el);
