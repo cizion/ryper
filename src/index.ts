@@ -121,20 +121,18 @@ const React = (() => {
   ): VNode<RyperAttributes> => {
     let el;
     try {
+      console.group(type.name);
       el = getVNode(type, props, children);
+      console.groupEnd();
     } catch (error) {
       el = getVNode(type, props, children);
     }
 
     const elementProps = el.attributes || (el.attributes = {});
-    // const _hookIdx = hookIdx;
-    // const _hook = hook;
     const _effect = effect;
 
     const oldCreate = elementProps.oncreate;
     elementProps.oncreate = (_el) => {
-      console.log("create");
-      // hooks.splice(_hookIdx - _hook.length, _hook.length, ..._hook);
       setTimeout(() => {
         const results = _effect.map(({ cb, depArray }) => {
           let e: EffectResult<null> = { depArray, callback: null };
@@ -150,9 +148,10 @@ const React = (() => {
 
     const oldUpdate = elementProps.onupdate;
     elementProps.onupdate = (_el) => {
+      console.log("onupdate");
       clearTimeout(timer);
       timer = setTimeout(() => {
-        console.log("aaa", effects);
+        console.log("last", effects, hooks);
       });
       oldUpdate && oldUpdate(_el);
     };
