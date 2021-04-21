@@ -1,33 +1,18 @@
-import { ActionsType, app, Children, Component, h, VNode } from "hyperapp";
+import {
+  ActionsType,
+  app,
+  Children,
+  Component,
+  h,
+  View,
+  VNode,
+} from "hyperapp";
 
 declare global {
   interface Window {
     hooks: Array<any>;
     effects: Array<any>;
   }
-}
-
-interface Ref<Value> {
-  current: Value;
-}
-interface Effect<Value> {
-  cb: Function;
-  depArray: Array<Value>;
-}
-interface EffectResult<Value> {
-  depArray: Array<Value>;
-  callback: null | Function;
-}
-interface Effects<Value> {
-  _el: Element;
-  results: Array<EffectResult<Value>>;
-}
-interface RyperAttributes {
-  oncreate?: null | ((_el: Element) => void);
-  onupdate?: null | ((_el: Element) => void);
-  ondestroy?: null | ((_el: Element) => void);
-  ref?: null | Ref<any>;
-  [key: string]: any;
 }
 interface V2VNode {
   type: any;
@@ -39,7 +24,14 @@ interface V2VNode {
   memo?: any;
   events?: any;
 }
-interface RyperComponentResult<State, Actions> {
+interface RyperAttributes {
+  oncreate?: null | ((_el: Element) => void);
+  onupdate?: null | ((_el: Element) => void);
+  ondestroy?: null | ((_el: Element) => void);
+  // ref?: null | Ref<any>;
+  [key: string]: any;
+}
+interface RyperView<State, Actions> extends View<State, Actions> {
   (
     state?: State,
     actions?: Actions,
@@ -49,30 +41,13 @@ interface RyperComponentResult<State, Actions> {
 }
 interface RyperComponent<State, Actions> extends Component {
   (attributes: RyperAttributes, children: Array<Children | Children[]>):
-    | RyperComponentResult<State, Actions>
+    | RyperView<State, Actions>
     | V2VNode
     | any;
 }
-
 const React = (() => {
   let rootActions: any;
 
-  let timer: number;
-
-  let hookIdx = 0;
-  let hooks: Array<any> = [];
-  let hook: Array<any> = [];
-
-  let effects: Array<Effects<any>> = [];
-  let effect: Array<Effect<any>> = [];
-
-  let refs: Array<Ref<any>> = [];
-
-  let elements: Array<VNode<RyperAttributes>> = [];
-
-  const isUndefined = <Value>(value: Value) => {
-    return value === undefined;
-  };
   const isV2VNode = (elFn: V2VNode | any): elFn is V2VNode => {
     const V2NodeKeys = ["type", "props", "children", "node", "tag", "key"];
     return (
@@ -80,8 +55,8 @@ const React = (() => {
     );
   };
   const isRyperComponentResult = <State, Actions>(
-    elFn: RyperComponentResult<State, Actions> | V2VNode | any
-  ): elFn is RyperComponentResult<State, Actions> => {
+    elFn: RyperView<State, Actions> | V2VNode | any
+  ): elFn is RyperView<State, Actions> => {
     return typeof elFn === "function";
   };
   const isRyperComponent = <State, Actions>(
@@ -110,71 +85,16 @@ const React = (() => {
     } else {
       el = elFn;
     }
-    elements.push(el);
 
     return el;
   };
+
   const componentRender = <State, Actions>(
     type: RyperComponent<State, Actions>,
     props: RyperAttributes,
     children: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
-    let el;
-    try {
-      console.group(type.name);
-      el = getVNode(type, props, children);
-      console.groupEnd();
-    } catch (error) {
-      el = getVNode(type, props, children);
-    }
-
-    const elementProps = el.attributes || (el.attributes = {});
-    const _effect = effect;
-
-    const oldCreate = elementProps.oncreate;
-    elementProps.oncreate = (_el) => {
-      setTimeout(() => {
-        const results = _effect.map(({ cb, depArray }) => {
-          let e: EffectResult<null> = { depArray, callback: null };
-          cb && (e.callback = cb(_el));
-          return e;
-        });
-
-        effects.push({ _el, results });
-      });
-
-      oldCreate && oldCreate(_el);
-    };
-
-    const oldUpdate = elementProps.onupdate;
-    elementProps.onupdate = (_el) => {
-      console.log("onupdate");
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        console.log("last", effects, hooks);
-      });
-      oldUpdate && oldUpdate(_el);
-    };
-
-    const oldDestroy = elementProps.ondestroy;
-    elementProps.ondestroy = (_el) => {
-      setTimeout(() => {
-        effects
-          .filter((e) => e._el === _el)
-          .forEach(({ results = [] }) => {
-            results.forEach(({ callback }) => {
-              callback && callback(_el);
-            });
-          });
-        effects = effects.filter((e) => {
-          return e._el !== _el;
-        });
-      });
-      oldDestroy && oldDestroy(_el);
-    };
-
-    effect = [];
-    hook = [];
+    const el = getVNode(type, props, children);
 
     return el;
   };
@@ -183,23 +103,6 @@ const React = (() => {
     props: RyperAttributes,
     children: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
-    const oldCreate = props.oncreate;
-    props.oncreate = (_el) => {
-      props.ref && (props.ref.current = _el);
-      oldCreate && oldCreate(_el);
-    };
-
-    const oldUpdate = props.onupdate;
-    props.onupdate = (_el) => {
-      props.ref && (props.ref.current = _el);
-      oldUpdate && oldUpdate(_el);
-    };
-
-    const oldDestroy = props.ondestroy;
-    props.ondestroy = (_el) => {
-      oldDestroy && oldDestroy(_el);
-    };
-
     const el = h(type, props, ...children);
 
     return el;
@@ -208,8 +111,15 @@ const React = (() => {
     type: RyperComponent<State, Actions> | string,
     props: RyperAttributes,
     ...children: Array<Children | Children[]>
-  ): RyperComponentResult<State, Actions> => {
-    return (...params) => {
+  ): RyperView<State, Actions> => {
+    return (
+      ...params: [
+        state?: State,
+        actions?: Actions,
+        props?: RyperAttributes,
+        children?: Array<Children | Children[]>
+      ]
+    ) => {
       const [, , addProps = {}, addChildren = []] = params;
       const newProps = { ...props, ...addProps };
       const newChildren = [...children, ...addChildren];
@@ -228,19 +138,6 @@ const React = (() => {
     };
   };
   const init = (view: VNode): VNode => {
-    hookIdx = 0;
-
-    hook = [];
-
-    effect = [];
-
-    elements = [];
-
-    refs = [];
-
-    window.hooks = hooks;
-    window.effects = effects;
-
     return view;
   };
   const render = <State, Actions>(
@@ -256,36 +153,7 @@ const React = (() => {
       container
     );
   };
-  const useState = <Value>(
-    initValue: Value
-  ): [value: Value, setState: (newValue: Value) => Value] => {
-    const _idx = hookIdx;
 
-    const setState = (newValue: Value, flag = true) => {
-      if (hooks[_idx] !== newValue) {
-        hooks[_idx] = newValue;
-        flag && rootActions.change();
-      }
-
-      return hooks[_idx];
-    };
-
-    const nowValue = hooks[hookIdx];
-    const state = isUndefined(nowValue) ? setState(initValue, false) : nowValue;
-
-    hookIdx++;
-    hook.push(initValue);
-
-    return [state, setState];
-  };
-  const useRef = <Value>(value: Value): Ref<Value> => {
-    const ref: Ref<Value> = { current: value };
-    refs.push(ref);
-    return ref;
-  };
-  const useEffect = <Value>(cb: Function, depArray: Array<Value>) => {
-    effect.push({ cb, depArray });
-  };
   const getState = (selector?: (state: any) => any): any => {
     const state = rootActions.getState();
     return selector ? selector(state) : state;
@@ -296,15 +164,12 @@ const React = (() => {
 
   return {
     render,
-    createElement,
-    useState,
-    useRef,
-    useEffect,
     getState,
     getActions,
+    createElement,
   };
 })();
 
-export const { useState, useRef, useEffect, getState, getActions } = React;
+export const { getState, getActions } = React;
 
 export default React;
