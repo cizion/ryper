@@ -48,6 +48,11 @@ interface RyperComponent<State, Actions> extends Component {
 const React = (() => {
   let rootActions: any;
 
+  let componentIdx = 0;
+  // let hooksIdx = 0;
+  let hooks: Array<any> = [];
+  let hook: any;
+
   const isV2VNode = (elFn: V2VNode | any): elFn is V2VNode => {
     const V2NodeKeys = ["type", "props", "children", "node", "tag", "key"];
     return (
@@ -89,13 +94,29 @@ const React = (() => {
     return el;
   };
 
+  const componentInit = (name: string, key: any) => {
+    const _componentIdx = componentIdx;
+
+    !hooks[_componentIdx] &&
+      (hooks[_componentIdx] = { name, key, states: [], refs: [], effects: [] });
+    hook = hooks[_componentIdx];
+  };
+
+  const componentFinal = () => {
+    console.log(hook);
+    componentIdx++;
+    // hooksIdx = 0;
+    // hook= null;
+  };
+
   const componentRender = <State, Actions>(
     type: RyperComponent<State, Actions>,
     props: RyperAttributes,
     children: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
+    componentInit(type.name, props.key);
     const el = getVNode(type, props, children);
-
+    componentFinal();
     return el;
   };
   const elementRender = <State, Actions>(
@@ -138,6 +159,11 @@ const React = (() => {
     };
   };
   const init = (view: VNode): VNode => {
+    componentIdx = 0;
+    // hooksIdx = 0;
+    // hook=null
+
+    window.hooks = hooks;
     return view;
   };
   const render = <State, Actions>(
