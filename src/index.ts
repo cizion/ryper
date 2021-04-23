@@ -14,6 +14,20 @@ declare global {
     effects: Array<any>;
   }
 }
+interface Effect<Value> {
+  depArray: Array<Value>;
+  effectCallback?: Function;
+}
+interface Ref<Value> {
+  current: Value;
+}
+interface Hook<StateValue, RefValue, EffectValue> {
+  name: string;
+  key: any;
+  states: Array<StateValue>;
+  refs: Array<Ref<RefValue>>;
+  effects: Array<Effect<EffectValue>>;
+}
 interface V2VNode {
   type: any;
   props: any;
@@ -28,7 +42,7 @@ interface RyperAttributes {
   oncreate?: null | ((_el: Element) => void);
   onupdate?: null | ((_el: Element) => void);
   ondestroy?: null | ((_el: Element) => void);
-  // ref?: null | Ref<any>;
+  ref?: null | Ref<any>;
   [key: string]: any;
 }
 interface RyperView<State, Actions> extends View<State, Actions> {
@@ -48,10 +62,12 @@ interface RyperComponent<State, Actions> extends Component {
 const React = (() => {
   let rootActions: any;
 
-  let componentIdx = 0;
-  // let hooksIdx = 0;
-  let hooks: Array<any> = [];
-  let hook: any;
+  let hooksIdx = 0;
+  let statesIdx = 0;
+  let effectsIdx = 0;
+  let refsIdx = 0;
+  let hooks: Array<Hook<any, any, any>> = [];
+  let hook: Hook<any, any, any> | null = null;
 
   const isV2VNode = (elFn: V2VNode | any): elFn is V2VNode => {
     const V2NodeKeys = ["type", "props", "children", "node", "tag", "key"];
@@ -94,21 +110,42 @@ const React = (() => {
     return el;
   };
 
+  const isEmpty = (arr: Array<any>, index: number): boolean => {
+    return arr.length - 1 < index;
+  };
+  const isNotSameComponent = (
+    name: string,
+    key: any,
+    component: Hook<any, any, any>
+  ): boolean => {
+    return name !== component.name || key !== component.key;
+  };
   const componentInit = (name: string, key: any) => {
-    const _componentIdx = componentIdx;
+    const _hooksIdx = hooksIdx++;
+    let _hooks: Hook<any, any, any> = {
+      name,
+      key,
+      states: [],
+      refs: [],
+      effects: [],
+    };
 
-    !hooks[_componentIdx] &&
-      (hooks[_componentIdx] = { name, key, states: [], refs: [], effects: [] });
-    hook = hooks[_componentIdx];
+    if (isEmpty(hooks, _hooksIdx)) {
+      hooks[_hooksIdx] = _hooks;
+    } else if (isNotSameComponent(name, key, hooks[_hooksIdx])) {
+      hooks.splice(_hooksIdx, 0, _hooks);
+    } else {
+      _hooks = hooks[_hooksIdx];
+    }
+
+    hook = _hooks;
   };
-
   const componentFinal = () => {
-    console.log(hook);
-    componentIdx++;
-    // hooksIdx = 0;
-    // hook= null;
+    statesIdx = 0;
+    effectsIdx = 0;
+    refsIdx = 0;
+    hook = null;
   };
-
   const componentRender = <State, Actions>(
     type: RyperComponent<State, Actions>,
     props: RyperAttributes,
@@ -116,6 +153,33 @@ const React = (() => {
   ): VNode<RyperAttributes> => {
     componentInit(type.name, props.key);
     const el = getVNode(type, props, children);
+
+    const _hook = hook;
+    const elementProps = el.attributes || (el.attributes = {});
+
+    const oldCreate = elementProps.oncreate;
+    elementProps.oncreate = (_el) => {
+      oldCreate && oldCreate(_el);
+    };
+
+    const oldUpdate = elementProps.onupdate;
+    elementProps.onupdate = (_el) => {
+      oldUpdate && oldUpdate(_el);
+    };
+
+    const oldDestroy = elementProps.ondestroy;
+    elementProps.ondestroy = (_el) => {
+      const index = hooks.findIndex((h) => h === _hook);
+      hooks.splice(index, 1);
+
+      const effects = _hook?.effects || [];
+      effects.forEach((e) => {
+        e.effectCallback && e.effectCallback();
+      });
+
+      oldDestroy && oldDestroy(_el);
+    };
+
     componentFinal();
     return el;
   };
@@ -124,6 +188,23 @@ const React = (() => {
     props: RyperAttributes,
     children: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
+    const oldCreate = props.oncreate;
+    props.oncreate = (_el) => {
+      props.ref && (props.ref.current = _el);
+      oldCreate && oldCreate(_el);
+    };
+
+    const oldUpdate = props.onupdate;
+    props.onupdate = (_el) => {
+      props.ref && (props.ref.current = _el);
+      oldUpdate && oldUpdate(_el);
+    };
+
+    const oldDestroy = props.ondestroy;
+    props.ondestroy = (_el) => {
+      oldDestroy && oldDestroy(_el);
+    };
+
     const el = h(type, props, ...children);
 
     return el;
@@ -159,9 +240,11 @@ const React = (() => {
     };
   };
   const init = (view: VNode): VNode => {
-    componentIdx = 0;
-    // hooksIdx = 0;
-    // hook=null
+    hooksIdx = 0;
+    statesIdx = 0;
+    effectsIdx = 0;
+    refsIdx = 0;
+    hook = null;
 
     window.hooks = hooks;
     return view;
@@ -180,6 +263,69 @@ const React = (() => {
     );
   };
 
+  const useState = <Value>(
+    initValue: Value
+  ): [value: Value, setState: (newValue: Value) => void] => {
+    if (hook === null) {
+      throw "[useState]: hook is null";
+    }
+
+    const _statesIdx = statesIdx++;
+    const _states = hook.states;
+
+    const setState = (newValue: Value, flag = true) => {
+      if (flag && _states[_statesIdx] === newValue) {
+        return;
+      }
+
+      _states[_statesIdx] = newValue;
+
+      flag && rootActions.change();
+    };
+    isEmpty(_states, _statesIdx) && setState(initValue, false);
+
+    const _state = _states[_statesIdx];
+    return [_state, setState];
+  };
+  const useEffect = <Value>(effect: Function, depArray: Array<Value>) => {
+    if (hook === null) {
+      throw "[useState]: hook is null";
+    }
+
+    const _effectsIdx = effectsIdx++;
+    const _effects = hook.effects;
+
+    let hasChange = true;
+    let effectCallback;
+
+    if (!isEmpty(_effects, _effectsIdx)) {
+      effectCallback = _effects[_effectsIdx].effectCallback;
+
+      const oldDepArray = _effects[_effectsIdx].depArray;
+      hasChange = depArray.some((dep, i) => !Object.is(dep, oldDepArray[i]));
+    }
+
+    if (hasChange) {
+      setTimeout(async () => {
+        effectCallback = await effect();
+      });
+    }
+
+    _effects[_effectsIdx] = { depArray, effectCallback };
+  };
+  const useRef = <Value>(value: Value): Ref<Value> => {
+    if (hook === null) {
+      throw "[useState]: hook is null";
+    }
+
+    const _refsIdx = refsIdx++;
+    const _refs = hook.refs;
+
+    isEmpty(_refs, _refsIdx) && (_refs[_refsIdx] = { current: value });
+
+    return _refs[_refsIdx];
+  };
+
   const getState = (selector?: (state: any) => any): any => {
     const state = rootActions.getState();
     return selector ? selector(state) : state;
@@ -193,9 +339,12 @@ const React = (() => {
     getState,
     getActions,
     createElement,
+    useState,
+    useEffect,
+    useRef,
   };
 })();
 
-export const { getState, getActions } = React;
+export const { getState, getActions, useState, useEffect, useRef } = React;
 
 export default React;
