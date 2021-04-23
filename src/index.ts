@@ -294,9 +294,9 @@ const React = (() => {
 
     const _effectsIdx = effectsIdx++;
     const _effects = hook.effects;
+    let newEffect: Effect<Value> = { depArray };
 
     let hasChange = true;
-    let newEffect: Effect<Value> = { depArray };
 
     if (!isEmpty(_effects, _effectsIdx)) {
       newEffect.effectCallback = _effects[_effectsIdx].effectCallback;
@@ -320,8 +320,9 @@ const React = (() => {
 
     const _refsIdx = refsIdx++;
     const _refs = hook.refs;
+    const newRef: Ref<Value> = { current: value };
 
-    isEmpty(_refs, _refsIdx) && (_refs[_refsIdx] = { current: value });
+    isEmpty(_refs, _refsIdx) && (_refs[_refsIdx] = newRef);
 
     return _refs[_refsIdx];
   };
