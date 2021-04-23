@@ -296,10 +296,10 @@ const React = (() => {
     const _effects = hook.effects;
 
     let hasChange = true;
-    let effectCallback;
+    let newEffect: Effect<Value> = { depArray };
 
     if (!isEmpty(_effects, _effectsIdx)) {
-      effectCallback = _effects[_effectsIdx].effectCallback;
+      newEffect.effectCallback = _effects[_effectsIdx].effectCallback;
 
       const oldDepArray = _effects[_effectsIdx].depArray;
       hasChange = depArray.some((dep, i) => !Object.is(dep, oldDepArray[i]));
@@ -307,11 +307,11 @@ const React = (() => {
 
     if (hasChange) {
       setTimeout(async () => {
-        effectCallback = await effect();
+        newEffect.effectCallback = await effect();
       });
     }
 
-    _effects[_effectsIdx] = { depArray, effectCallback };
+    _effects[_effectsIdx] = newEffect;
   };
   const useRef = <Value>(value: Value): Ref<Value> => {
     if (hook === null) {
