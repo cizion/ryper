@@ -100,7 +100,9 @@ const React = (() => {
       el = {
         nodeName: tag,
         attributes: props,
-        children,
+        children: children.map((child: any) =>
+          typeof child !== "boolean" ? child : ""
+        ),
         key,
       };
     } else {
