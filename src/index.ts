@@ -72,7 +72,8 @@ const React = (() => {
   const isV2VNode = (elFn: V2VNode | any): elFn is V2VNode => {
     const V2NodeKeys = ["type", "props", "children", "node", "tag", "key"];
     return (
-      typeof elFn === "object" && V2NodeKeys.every((key) => Object.keys(key))
+      typeof elFn === "object" &&
+      V2NodeKeys.every((key) => Object.keys(elFn).includes(key))
     );
   };
   const isRyperComponentResult = <State, Actions>(
