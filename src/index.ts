@@ -110,6 +110,8 @@ const React = (() => {
       el = elFn;
     }
 
+    el.key = el.key || type.name;
+
     return el;
   };
 
@@ -162,23 +164,25 @@ const React = (() => {
 
     const oldCreate = elementProps.oncreate;
     elementProps.oncreate = (_el) => {
+      elementProps.ref && (elementProps.ref.current = _el);
       oldCreate && oldCreate(_el);
     };
 
     const oldUpdate = elementProps.onupdate;
     elementProps.onupdate = (_el) => {
+      elementProps.ref && (elementProps.ref.current = _el);
       oldUpdate && oldUpdate(_el);
     };
 
     const oldDestroy = elementProps.ondestroy;
     elementProps.ondestroy = (_el) => {
-      const index = hooks.findIndex((h) => h === _hook);
-      hooks.splice(index, 1);
-
       const effects = _hook?.effects || [];
       effects.forEach((e) => {
         e.effectCallback && e.effectCallback();
       });
+
+      const index = hooks.findIndex((h) => h === _hook);
+      hooks.splice(index, 1);
 
       oldDestroy && oldDestroy(_el);
     };
