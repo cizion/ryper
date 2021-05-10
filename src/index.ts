@@ -76,7 +76,7 @@ const React = (() => {
       V2NodeKeys.every((key) => Object.keys(elFn).includes(key))
     );
   };
-  const isRyperComponentResult = <State, Actions>(
+  const isRyperView = <State, Actions>(
     elFn: RyperView<State, Actions> | V2VNode | any
   ): elFn is RyperView<State, Actions> => {
     return typeof elFn === "function";
@@ -94,7 +94,7 @@ const React = (() => {
     let elFn = type(props, children);
     let el: VNode<RyperAttributes>;
 
-    if (isRyperComponentResult(elFn)) {
+    if (isRyperView(elFn)) {
       el = elFn();
     } else if (isV2VNode(elFn)) {
       const { key, children, tag, props } = elFn;
@@ -176,6 +176,7 @@ const React = (() => {
 
     const oldDestroy = elementProps.ondestroy;
     elementProps.ondestroy = (_el) => {
+      console.log("ondestroy");
       const effects = _hook?.effects || [];
       effects.forEach((e) => {
         e.effectCallback && e.effectCallback();
@@ -236,6 +237,15 @@ const React = (() => {
         ? componentRender(type, newProps, newChildren)
         : elementRender(type, newProps, newChildren);
     };
+  };
+  const cloneElement = <State, Actions>(
+    component: RyperView<State, Actions> | V2VNode | any,
+    props?: RyperAttributes,
+    ...children: Array<Children | Children[]>
+  ): VNode<RyperAttributes> => {
+    return isRyperView(component)
+      ? component(undefined, undefined, props, children)
+      : component;
   };
   const createActions = <State, Actions>(
     actions: ActionsType<State, Actions>
@@ -347,6 +357,7 @@ const React = (() => {
     getState,
     getActions,
     createElement,
+    cloneElement,
     useState,
     useEffect,
     useRef,
