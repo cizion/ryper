@@ -11,7 +11,6 @@ import {
 declare global {
   interface Window {
     hooks: Array<any>;
-    effects: Array<any>;
   }
 }
 interface Effect<Value> {
@@ -27,6 +26,7 @@ interface Hook<StateValue, RefValue, EffectValue> {
   states: Array<StateValue>;
   refs: Array<Ref<RefValue>>;
   effects: Array<Effect<EffectValue>>;
+  el?: VNode<RyperAttributes>;
 }
 interface V2VNode {
   type: any;
@@ -110,7 +110,7 @@ const React = (() => {
       el = elFn;
     }
 
-    el.key = el.key || type.name;
+    el.key = el.key || type.name || el.nodeName;
 
     return el;
   };
@@ -118,16 +118,19 @@ const React = (() => {
   const isEmpty = (arr: Array<any>, index: number): boolean => {
     return arr.length - 1 < index;
   };
-  const isNotSameComponent = (
+  const isNotSameComponent = <StateValue, RefValue, EffectValue>(
     name: string,
     key: any,
-    component: Hook<any, any, any>
+    component: Hook<StateValue, RefValue, EffectValue>
   ): boolean => {
     return name !== component.name || key !== component.key;
   };
-  const componentInit = (name: string, key: any) => {
+  const componentInit = <StateValue, RefValue, EffectValue>(
+    name: string,
+    key: any
+  ): Hook<StateValue, RefValue, EffectValue> => {
     const _hooksIdx = hooksIdx++;
-    let _hooks: Hook<any, any, any> = {
+    let _hooks: Hook<StateValue, RefValue, EffectValue> = {
       name,
       key,
       states: [],
@@ -144,8 +147,15 @@ const React = (() => {
     }
 
     hook = _hooks;
+
+    return _hooks;
   };
-  const componentFinal = () => {
+  const componentFinal = <StateValue, RefValue, EffectValue>(
+    el: VNode<RyperAttributes>,
+    _hook: Hook<StateValue, RefValue, EffectValue>
+  ) => {
+    _hook.el = el;
+
     statesIdx = 0;
     effectsIdx = 0;
     refsIdx = 0;
@@ -156,10 +166,13 @@ const React = (() => {
     props: RyperAttributes,
     children: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
-    componentInit(type.name, props.key);
+    if (!type.name) {
+      return getVNode(type, props, children);
+    }
+
+    const _hook = componentInit(type.name, props.key);
     const el = getVNode(type, props, children);
 
-    const _hook = hook;
     const elementProps = el.attributes || (el.attributes = {});
 
     const oldCreate = elementProps.oncreate;
@@ -176,19 +189,19 @@ const React = (() => {
 
     const oldDestroy = elementProps.ondestroy;
     elementProps.ondestroy = (_el) => {
-      console.log("ondestroy");
-      const effects = _hook?.effects || [];
-      effects.forEach((e) => {
-        e.effectCallback && e.effectCallback();
-      });
+      // console.log("ondestroy");
+      // const effects = _hook?.effects || [];
+      // effects.forEach((e) => {
+      //   e.effectCallback && e.effectCallback();
+      // });
 
-      const index = hooks.findIndex((h) => h === _hook);
-      hooks.splice(index, 1);
+      // const index = hooks.findIndex((h) => h === _hook);
+      // hooks.splice(index, 1);
 
       oldDestroy && oldDestroy(_el);
     };
 
-    componentFinal();
+    componentFinal(el, _hook);
     return el;
   };
   const elementRender = <State, Actions>(
@@ -264,6 +277,7 @@ const React = (() => {
     hook = null;
 
     window.hooks = hooks;
+
     return view;
   };
   const render = <State, Actions>(
