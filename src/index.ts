@@ -2,7 +2,7 @@ import { ActionsType, app, Children, Component, h, VNode } from "hyperapp";
 
 declare global {
   interface Window {
-    test: any;
+    rootActios: any;
   }
 }
 interface Ref<Value> {
@@ -138,7 +138,7 @@ const React = (() => {
       () => init(view),
       container
     );
-    console.log(rootActions);
+    window.rootActios = rootActions;
   };
 
   const getState = <State, Target>(
