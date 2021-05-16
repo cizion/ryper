@@ -115,7 +115,6 @@ const React = (() => {
   const createActions = <State, Actions>(
     actions: ActionsType<State, Actions>
   ): ActionsType<State, Actions> => {
-    console.log("createActions");
     return {
       ...actions,
       change: () => (state) => ({ ...state }),
@@ -123,7 +122,7 @@ const React = (() => {
     };
   };
   const init = ({ nodeName, attributes = {}, children = [] }: VNode): VNode => {
-    console.log("init");
+    console.log("init", attributes, children);
     return createElement(nodeName, attributes, children);
   };
   const render = <State, Actions>(
