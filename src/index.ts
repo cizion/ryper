@@ -12,6 +12,7 @@ declare global {
   interface Window {
     hooks: any;
     rootActios: any;
+    tree: any;
   }
 }
 interface Ref<Value> {
@@ -21,9 +22,9 @@ interface Effect<Value> {
   depArray: Array<Value>;
   effectCallback?: Function;
 }
-interface Hook<StateValue, RefValue, EffectValue> {
-  // name: string;
-  // key: any;
+interface Hook<State, Actions, StateValue, RefValue, EffectValue> {
+  type: RyperComponent<State, Actions>;
+  key: string | number | null;
   states: Array<StateValue>;
   refs: Array<Ref<RefValue>>;
   effects: Array<Effect<EffectValue>>;
@@ -40,6 +41,7 @@ interface RyperAttributes {
   onupdate?: null | ((_el: Element) => void);
   ondestroy?: null | ((_el: Element) => void);
   ref?: null | Ref<any>;
+  key?: string | number | null;
   [key: string]: any;
 }
 interface V2VNode {
@@ -72,15 +74,32 @@ const React = (() => {
   let createRyperViewKey = Symbol();
   let rootActions: any;
 
-  // let hooksIdx = 0;
+  let oldTree: any = null;
+  let tree: any = null;
+
+  let hooksIdx = 0;
   // let statesIdx = 0;
   // let effectsIdx = 0;
   // let refsIdx = 0;
-  let hooks: Array<Hook<any, any, any>> = [];
+  let hooks: Array<Hook<any, any, any, any, any>> = [];
   // let hook: Hook<any, any, any> | null = null;
 
   // const isEmpty = (arr: Array<any>, index: number): boolean => {
   //   return arr.length - 1 < index;
+  // };
+
+  // const isNotSameComponent = <
+  //   State,
+  //   Actions,
+  //   StateValue,
+  //   RefValue,
+  //   EffectValue
+  // >(
+  //   type: RyperComponent<State, Actions>,
+  //   key: string | number | null,
+  //   hook: Hook<State, Actions, StateValue, RefValue, EffectValue>
+  // ): boolean => {
+  //   return type !== hook.type || key !== hook.key;
   // };
   const isComponent = (type: Component | string): type is Component => {
     return typeof type === "function";
@@ -126,31 +145,64 @@ const React = (() => {
     return convertVersion(el);
   };
 
-  const componentInit = <StateValue, RefValue, EffectValue>(): Hook<
-    StateValue,
-    RefValue,
-    EffectValue
-  > => {
-    // const _hooksIdx = hooksIdx++;
-    let _hooks: Hook<StateValue, RefValue, EffectValue> = {
-      // name,
-      // key,
+  // {
+  //    parents: [...]
+  //    target: {}
+  //    childrens: [...]
+  // }
+
+  const getTreeData = (
+    root: any,
+    value: any,
+    result: any = {
+      parents: [],
+      target: null,
+      children: [],
+    }
+  ): any => {
+    if (root._hook === value) {
+      result.target = root;
+    } else if (result.target) {
+      result.children.push(root);
+    } else {
+      result.parents.push(root);
+    }
+
+    if (root.children) {
+      return root.children.map((child: any) =>
+        getTreeData(child, value, result)
+      );
+    } else {
+      return result;
+    }
+
+    // return result;
+  };
+
+  const componentInit = <State, Actions, StateValue, RefValue, EffectValue>(
+    type: RyperComponent<State, Actions>,
+    props: RyperAttributes
+  ): Hook<State, Actions, StateValue, RefValue, EffectValue> => {
+    const _hooksIdx = hooksIdx++;
+    let _hooks: Hook<State, Actions, StateValue, RefValue, EffectValue> = {
+      type,
+      key: props.key || Math.random(),
       states: [],
       refs: [],
       effects: [],
     };
 
-    // if (isEmpty(hooks, _hooksIdx)) {
-    //   hooks[_hooksIdx] = _hooks;
-    // } else if (isNotSameComponent(name, key, hooks[_hooksIdx])) {
-    //   hooks.splice(_hooksIdx, 0, _hooks);
-    // } else {
-    //   _hooks = hooks[_hooksIdx];
-    // }
+    if (!oldTree) {
+      hooks.splice(_hooksIdx, 0, _hooks);
+    } else {
+      console.group("===");
+      const result = getTreeData(oldTree, hooks[_hooksIdx]);
+      console.log("result -=====", result);
+      console.groupEnd();
+      _hooks = hooks[_hooksIdx];
+    }
 
-    // hook = _hooks;
-
-    // TODO
+    // console.log(tree);
 
     return _hooks;
   };
@@ -176,44 +228,38 @@ const React = (() => {
     props: RyperAttributes,
     children: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
-    componentInit();
-
-    // console.log(type, props);
-
-    // props.oncreate = (_el) => {
-    //   console.log("oncreate", _el);
-    // };
-    // props.onupdate = (_el) => {
-    //   console.log("onupdate");
-    // };
-    // props.ondestroy = (_el) => {
-    //   console.log("ondestroy");
-    // };
-
+    const _hook = componentInit(type, props);
     const el = getVNode(type, props, children);
+    const newEl = { ...el, _hook };
+
+    !tree && (tree = newEl);
+
+    // console.log(oldTree, tree);
+
+    // console.log(type, children, el);
 
     const elementProps: RyperAttributes = el.attributes || (el.attributes = {});
 
     const oldCreate = elementProps.oncreate;
     elementProps.oncreate = (_el) => {
-      console.log("oncreate", _el);
+      // console.log("oncreate", _el);
       oldCreate && oldCreate(_el);
     };
 
     const oldUpdate = elementProps.onupdate;
     elementProps.onupdate = (_el) => {
-      console.log("onupdate", _el);
+      // console.log("onupdate", _el);
       oldUpdate && oldUpdate(_el);
     };
 
     const oldDestroy = elementProps.ondestroy;
     elementProps.ondestroy = (_el) => {
-      console.log("ondestroy");
+      // console.log("ondestroy", _el);
       oldDestroy && oldDestroy(_el);
     };
 
     componentFinal();
-    return el;
+    return newEl;
   };
   const elementRender = (
     type: string,
@@ -278,7 +324,10 @@ const React = (() => {
     window.rootActios = rootActions;
     window.hooks = hooks;
 
-    // hooksIdx = 0;
+    oldTree = tree;
+    tree = null;
+
+    hooksIdx = 0;
     // statesIdx = 0;
     // effectsIdx = 0;
     // refsIdx = 0;
