@@ -125,15 +125,9 @@ const React = (() => {
   // };
 
   const versionDown = (newEl: V2VNode): VNode => {
-    const { key, children, tag, props } = newEl;
-    const el = {
-      nodeName: tag,
-      attributes: props,
-      children: children.map((child: any) =>
-        typeof child !== "boolean" ? child : ""
-      ),
-      key,
-    };
+    const { children, tag, props } = newEl;
+
+    const el = h(tag, props, ...children);
 
     return el;
   };
@@ -207,6 +201,7 @@ const React = (() => {
   //   // not init
   //   //  add
   //   //  del
+  //   //  change
   //   //  old
 
   //   // console.log(tree);
