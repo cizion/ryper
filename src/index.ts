@@ -74,8 +74,8 @@ const React = (() => {
   let createRyperViewKey = Symbol();
   let rootActions: any;
 
-  let oldTree: any = null;
-  let tree: any = null;
+  // let tree: any;
+  // let target: any;
 
   // let hooksIdx = 0;
   // let statesIdx = 0;
@@ -125,9 +125,15 @@ const React = (() => {
   // };
 
   const versionDown = (newEl: V2VNode): VNode => {
-    const { children, tag, props } = newEl;
-
-    const el = h(tag, props, ...children);
+    const { key, children, tag, props } = newEl;
+    const el = {
+      nodeName: tag,
+      attributes: props,
+      children: children.map((child: any) =>
+        typeof child !== "boolean" ? child : ""
+      ),
+      key,
+    };
 
     return el;
   };
@@ -137,40 +143,6 @@ const React = (() => {
   const getEl = <State, Actions>(newEl: RyperResult<State, Actions>) => {
     const el: VNode = isRyperView(newEl) ? newEl() : newEl;
     return convertVersion(el);
-  };
-
-  // {
-  //    parents: [...]
-  //    target: {}
-  //    childrens: [...]
-  // }
-
-  const getTreeData = (
-    root: any,
-    value: any,
-    result: any = {
-      parents: [],
-      target: null,
-      children: [],
-    }
-  ): any => {
-    if (root._hook === value) {
-      result.target = root;
-    } else if (result.target) {
-      result.children.push(root);
-    } else {
-      result.parents.push(root);
-    }
-
-    if (root.children) {
-      return root.children.map((child: any) =>
-        getTreeData(child, value, result)
-      );
-    } else {
-      return result;
-    }
-
-    // return result;
   };
 
   // const componentInit = <State, Actions, StateValue, RefValue, EffectValue>(
@@ -189,31 +161,17 @@ const React = (() => {
   //   if (!oldTree) {
   //     hooks.splice(_hooksIdx, 0, _hooks);
   //   } else {
-  //     console.group("===");
-  //     const result = getTreeData(oldTree, hooks[_hooksIdx]);
-  //     console.log("result -=====", result);
-  //     console.groupEnd();
   //     _hooks = hooks[_hooksIdx];
   //   }
 
-  //   // TODO
-  //   // init
-  //   // not init
-  //   //  add
-  //   //  del
-  //   //  change
-  //   //  old
-
-  //   // console.log(tree);
-
   //   return _hooks;
   // };
-  const componentFinal = () => {
-    // statesIdx = 0;
-    // effectsIdx = 0;
-    // refsIdx = 0;
-    // hook = null;
-  };
+  // const componentFinal = () => {
+  //   // statesIdx = 0;
+  //   // effectsIdx = 0;
+  //   // refsIdx = 0;
+  //   // hook = null;
+  // };
   const getVNode = <State, Actions>(
     type: RyperComponent<State, Actions>,
     props: RyperAttributes,
@@ -230,19 +188,36 @@ const React = (() => {
     props: RyperAttributes,
     children: Array<Children | Children[]>
   ): VNode<RyperAttributes> => {
+    // const node = {
+    //   type,
+    //   children: [],
+    //   parent: target
+    // }
+
+    // if(!tree) {
+    //   tree = node;
+    // }
+
     // const _hook = componentInit(type, props);
-    const el = getVNode(type, props, children);
-    // const newEl = { ...el, _hook };
 
-    !tree && (tree = el);
-
-    console.log(tree, oldTree);
+    console.log("-", type.name);
+    const el: any = getVNode(type, props, children);
+    console.log("--", type.name, el);
+    debugger;
+    el.hook ? el.hook.push({}) : (el.hook = [{}]);
+    el.children = new Proxy(el.children, {
+      set(target, prop, val) {
+        if (typeof val === "object") {
+          val.parent = el;
+        }
+        return (target[prop] = val);
+      },
+    });
 
     const elementProps: RyperAttributes = el.attributes || (el.attributes = {});
 
     const oldCreate = elementProps.oncreate;
     elementProps.oncreate = (_el) => {
-      // console.log("oncreate", _el);
       oldCreate && oldCreate(_el);
     };
 
@@ -258,7 +233,7 @@ const React = (() => {
       oldDestroy && oldDestroy(_el);
     };
 
-    componentFinal();
+    // componentFinal();
     return el;
   };
   const elementRender = (
@@ -283,7 +258,9 @@ const React = (() => {
       oldDestroy && oldDestroy(_el);
     };
 
+    console.log("=", type, children);
     const el = h(type, props, ...children);
+    console.log("==", type, el);
 
     return el;
   };
@@ -309,6 +286,7 @@ const React = (() => {
         : elementRender(type, newProps, newChildren);
     };
     createRyperView.key = createRyperViewKey;
+    createRyperView.test = type;
     return createRyperView;
   };
   const createActions = <State, Actions>(
@@ -321,8 +299,8 @@ const React = (() => {
     };
   };
   const init = <State, Actions>(el: RyperResult<State, Actions>): VNode => {
-    oldTree = tree;
-    tree = null;
+    window.rootActios = rootActions;
+    window.hooks = hooks;
 
     // hooksIdx = 0;
     // statesIdx = 0;
@@ -330,15 +308,13 @@ const React = (() => {
     // refsIdx = 0;
     // hook = null;
 
-    window.rootActios = rootActions;
-    window.hooks = hooks;
-
+    // return getEl(el);
     return getEl(el);
   };
   const render = <State, Actions>(
     state: State,
     actions: ActionsType<State, Actions>,
-    view: RyperResult<State, Actions>,
+    view: VNode,
     container: Element | null
   ) => {
     rootActions = app<State, Actions>(
