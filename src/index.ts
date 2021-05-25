@@ -497,15 +497,11 @@ const React = (() => {
     return _refs[_refsIdx];
   };
 
-  const getState = <State, Target>(
-    selector?: (state: State) => Target
-  ): Target => {
+  const getState = (selector?: (state: any) => any): any => {
     const state = rootActions.getState();
     return selector ? selector(state) : state;
   };
-  const getActions = <Actions, Target>(
-    selector?: (state: Actions) => Target
-  ): Target => {
+  const getActions = (selector?: (state: any) => any): any => {
     return selector ? selector(rootActions) : rootActions;
   };
   return {
