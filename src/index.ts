@@ -394,6 +394,13 @@ const React = (() => {
 
     return createRyperView;
   };
+  const cloneElement = <State, Actions>(
+    component: RyperView<State, Actions>,
+    props?: RyperAttributes,
+    ...children: Array<Children | Children[]>
+  ) => {
+    return component(undefined, undefined, props, children);
+  };
   const createActions = <State, Actions>(
     actions: ActionsType<State, Actions>
   ): ActionsType<State, Actions> => {
@@ -507,6 +514,7 @@ const React = (() => {
     useState,
     useEffect,
     useRef,
+    cloneElement,
   };
 })();
 
