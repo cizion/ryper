@@ -398,7 +398,7 @@ const React = (() => {
     component: RyperView<State, Actions>,
     props?: RyperAttributes,
     ...children: Array<Children | Children[]>
-  ) => {
+  ): RyperVNode => {
     return component(undefined, undefined, props, children);
   };
   const createActions = <State, Actions>(
