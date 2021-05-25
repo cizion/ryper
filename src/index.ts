@@ -476,6 +476,8 @@ const React = (() => {
 
       newEffect = {
         ..._effects[_effectsIdx],
+        effect,
+        depArray,
         hasChange: depArray.some((dep, i) => !Object.is(dep, oldDepArray[i])),
       };
     }
