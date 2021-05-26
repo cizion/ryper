@@ -432,7 +432,7 @@ const React = (() => {
     view: RyperView<State, Actions>,
     container: Element | null
   ): void => {
-    rootActions = app(
+    rootActions = app<State, Actions>(
       state,
       createActions(actions),
       () => init(view),
@@ -497,6 +497,29 @@ const React = (() => {
     return _refs[_refsIdx];
   };
 
+  const Fragment = <State, Actions>(
+    props: RyperAttributes,
+    ...children: Array<Children | Children[]>
+  ): any => {
+    const createRyperViewTest = (
+      ...params: [
+        state?: State,
+        actions?: Actions,
+        props?: RyperAttributes,
+        children?: Array<Children | Children[]>
+      ]
+    ): RyperVNode => {
+      const [, , addProps = {}, addChildren = []] = params;
+      const newProps = { ...props, ...addProps };
+      const newChildren = [...children, ...addChildren];
+
+      return h("", newProps, ...newChildren);
+    };
+    createRyperViewTest.key = createRyperViewKey;
+
+    return createRyperViewTest;
+  };
+
   const getState = (selector?: (state: any) => any): any => {
     const state = rootActions.getState();
     return selector ? selector(state) : state;
@@ -513,6 +536,7 @@ const React = (() => {
     useEffect,
     useRef,
     cloneElement,
+    Fragment,
   };
 })();
 
