@@ -498,27 +498,10 @@ const React = (() => {
   };
 
   const Fragment = (
-    props: RyperAttributes,
+    { key }: RyperAttributes,
     ...children: Array<Children | Children[]>
   ): any => {
-    // const createRyperViewTest = (
-    //   ...params: [
-    //     state?: State,
-    //     actions?: Actions,
-    //     props?: RyperAttributes,
-    //     children?: Array<Children | Children[]>
-    //   ]
-    // ): RyperVNode => {
-    //   const [, , , addChildren = []] = params;
-    //   const newChildren = [...children, ...addChildren];
-
-    //   return h("", {}, ...newChildren);
-    // };
-    // createRyperViewTest.key = createRyperViewKey;
-
-    // return createRyperViewTest;
-    console.log(props);
-    return h("", {}, ...children);
+    return h("", { key }, ...children);
   };
 
   const getState = (selector?: (state: any) => any): any => {
@@ -540,6 +523,7 @@ const React = (() => {
     Fragment,
   };
 })();
+const { getState, getActions, useState, useEffect, useRef } = React;
 
 export default React;
-export const { getState, getActions, useState, useEffect, useRef } = React;
+export { app, h, getState, getActions, useState, useEffect, useRef };
