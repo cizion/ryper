@@ -238,6 +238,7 @@ const React = (() => {
       _hook = createHook(type);
       hooks[_hooksIdx] = _hook;
     } else if (isNotSameComponent(type, props.key, hooks[_hooksIdx])) {
+      // FIXME 해당 부분의 컴포넌트 추가, 삭제, 변경 체크 로직 필요...
       const parentKey = parent?.key;
       const newParent = elements.find((el) => el.key === parentKey);
       const oldParent = oldElements.find((el) => el.key === parentKey);
@@ -428,7 +429,7 @@ const React = (() => {
   };
   const render = <State, Actions>(
     state: State,
-    actions: ActionsType<State, Actions>,
+    actions: ActionsType<State, Actions> | any,
     view: RyperView<State, Actions>,
     container: Element | null
   ): void => {
