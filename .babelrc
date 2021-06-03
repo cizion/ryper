@@ -1,0 +1,15 @@
+{
+  "presets": [
+    [
+      "@babel/env",
+      {
+        "useBuiltIns": "usage",
+        "corejs": 3,
+        "shippedProposals": true,
+        "targets": "> 0.25%, not dead"
+      }
+    ],
+    ["@babel/typescript"]
+  ],
+  "plugins": [["@babel/plugin-transform-react-jsx"]]
+}
