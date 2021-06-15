@@ -1,6 +1,6 @@
 {
   "name": "ryper",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "hyperapp & react hooks",
   "keywords": [
     "hyperapp",
@@ -39,7 +39,6 @@
     "webpack-cli": "^4.4.0"
   },
   "dependencies": {
-    "@types/react": "^17.0.11",
     "core-js": "^3.8.3",
     "hyperapp": "github:cizion/hyperapp"
   },
