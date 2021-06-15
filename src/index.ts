@@ -12,8 +12,6 @@ interface Hook<StateValue, RefValue, EffectValue> {
   effects: Array<Effect<EffectValue>>;
 }
 
-// TODO key setting test!
-
 const React = (() => {
   let rootActions: any = null;
   let wipRoot: any = null;
@@ -51,6 +49,16 @@ const React = (() => {
     return arr.length - 1 < index;
   };
 
+  const flatDeep = (arr: any[], d = 1): any[] => {
+    return d > 0
+      ? arr.reduce(
+          (acc, val) =>
+            acc.concat(Array.isArray(val) ? flatDeep(val, d - 1) : val),
+          []
+        )
+      : arr.slice();
+  };
+
   const createElement = (
     type: Component | string | number,
     attributes: { [key: string]: any } | null,
@@ -63,7 +71,7 @@ const React = (() => {
       key: newProps.key,
       nodeName: type,
       attributes: newProps,
-      children: children.flat(Infinity).map((child) => {
+      children: flatDeep(children, Infinity).map((child) => {
         return typeof child === "object" ? child : createTextElement(child);
       }),
       type,
@@ -110,8 +118,6 @@ const React = (() => {
         element &&
         element.nodeName === oldFiber.nodeName &&
         element.key === oldFiber.key;
-
-      // TODO key setting test!!!
 
       if (newType) {
         newFiber = {
