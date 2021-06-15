@@ -26,7 +26,7 @@ const React = (() => {
   const isV2VNode = (el: any): boolean => {
     const V2NodeKeys = ["type", "props", "children", "node", "tag", "key"];
     return (
-      typeof el === "object" &&
+      el instanceof Object &&
       V2NodeKeys.every((key) => Object.keys(el).includes(key))
     );
   };
@@ -71,7 +71,7 @@ const React = (() => {
       nodeName: type,
       attributes: newProps,
       children: flatDeep(children, Infinity).map((child) => {
-        return typeof child === "object" ? child : createTextElement(child);
+        return child instanceof Object ? child : createTextElement(child);
       }),
       type,
     };

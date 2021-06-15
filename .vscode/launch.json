@@ -2,9 +2,9 @@
   "configurations": [
     {
       "type": "pwa-chrome",
-      "name": "http://localhost:9090/",
+      "name": "http://localhost:9092/",
       "request": "launch",
-      "url": "http://localhost:9090/"
+      "url": "http://localhost:9092/"
     }
   ]
 }
