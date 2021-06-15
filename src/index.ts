@@ -64,7 +64,6 @@ const React = (() => {
     attributes: { [key: string]: any } | null,
     ...children: Array<Children | Children[]>
   ): any => {
-    console.log(type, attributes, children);
     const newProps = { ...attributes };
     // debugger;
     return {
@@ -286,8 +285,6 @@ const React = (() => {
     nextUnitOfWork = wipRoot;
 
     workLoop();
-
-    console.log(currentRoot.children[0]);
 
     return currentRoot.children[0];
   };
