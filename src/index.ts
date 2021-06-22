@@ -263,6 +263,7 @@ const React = (() => {
     });
     currentRoot = wipRoot;
     wipRoot = null;
+    deletions = [];
   };
 
   const workLoop = () => {
