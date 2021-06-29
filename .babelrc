@@ -1,12 +1,16 @@
-
 {
   "presets": [
-    ["@babel/env", {
-      "useBuiltIns": "usage",
-      "corejs": 3,
-      "shippedProposals": true,
-      "targets": "> 0.25%, not dead"
-    }],
+    [
+      "@babel/env",
+      {
+        "useBuiltIns": "usage",
+        "corejs": 3,
+        "shippedProposals": true,
+        "targets": {
+          "browsers": ["ie >= 10", "> 0.25%, not dead"]
+        }
+      }
+    ],
     ["@babel/typescript"]
   ]
 }
