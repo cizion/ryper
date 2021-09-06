@@ -1,182 +1,107 @@
-import { app, ActionsType, Children, Component } from "hyperapp";
-interface Ref<Value> {
-  current: Value;
-}
-interface Effect<Value> {
-  depArray: Array<Value>;
-  effectCallback?: Function;
-}
-interface Hook<StateValue, RefValue, EffectValue> {
-  states: Array<StateValue>;
-  refs: Array<Ref<RefValue>>;
-  effects: Array<Effect<EffectValue>>;
-}
+import { ActionsType, app } from "../../hyperapp";
+import { EffectTag, ROOT_TYPE } from "./constants";
+import { createDom } from "./dom";
+import { createChildrenElement } from "./fiber";
+import {
+  ElChildren,
+  ElProps,
+  ElType,
+  Fiber,
+  Hook,
+  Effect,
+  Ref,
+} from "./module";
+import { isEmpty, isEmptyArrIndex } from "./utils";
 
 const React = (() => {
-  let rootActions: any = null;
-  let wipRoot: any = null;
-  let currentRoot: any = null;
-  let nextUnitOfWork: any = null;
-  let wipFiber: any = null;
+  let rootActions: any;
+  let wipRoot: Fiber | undefined;
+  let currentRoot: Fiber | undefined;
+  let nextUnitOfWork: Fiber | undefined;
+  let wipFiber: Fiber | undefined;
   let statesIdx = 0;
   let effectsIdx = 0;
   let refsIdx = 0;
-  let deletions: any[] = [];
+  let deletions: Fiber[] = [];
 
-  const isV2VNode = (el: any): boolean => {
-    const V2NodeKeys = ["type", "props", "children", "node", "tag", "key"];
-    return (
-      el instanceof Object &&
-      V2NodeKeys.every((key) => Object.keys(el).includes(key))
-    );
+  const commitWork = (fiber?: Fiber) => {
+    if (!fiber) {
+      return;
+    }
+
+    let domParentFiber = fiber.parent;
+
+    while (!domParentFiber?.dom) {
+      domParentFiber = domParentFiber?.parent;
+    }
+
+    const domParent = domParentFiber.dom;
+
+    !isEmpty(fiber.dom) && domParent.children.push(fiber.dom);
+
+    commitWork(fiber.child);
+    commitWork(fiber.sibling);
   };
 
-  const versionDown = (newEl: any) => {
-    const { key, children, tag, props } = newEl;
-    const el = {
-      nodeName: tag,
-      attributes: props,
-      children: children.map((child: any) =>
-        typeof child !== "boolean" ? child : ""
-      ),
-      key,
-    };
+  const commitDeletion = (fiber?: Fiber) => {
+    if (!fiber) {
+      return;
+    }
 
-    return el;
+    fiber.hook?.effects.forEach((effect: any) => {
+      effect.effectCallback && effect.effectCallback();
+    });
+
+    commitDeletion(fiber.child);
+    commitDeletion(fiber.sibling);
   };
 
-  const isEmpty = (arr: Array<any>, index: number): boolean => {
-    return arr.length - 1 < index;
+  const commitRoot = () => {
+    deletions.forEach(commitDeletion);
+    commitWork(wipRoot?.child);
   };
 
-  const flatDeep = (arr: any[], d = 1): any[] => {
-    return d > 0
-      ? arr.reduce(
-          (acc, val) =>
-            acc.concat(Array.isArray(val) ? flatDeep(val, d - 1) : val),
-          []
-        )
-      : arr.slice();
-  };
-
-  const createElement = (
-    type: Component | string | number,
-    attributes: { [key: string]: any } | null,
-    ...children: Array<Children | Children[]>
-  ): any => {
-    const newProps = { ...attributes };
-    // debugger;
-    return {
-      key: newProps.key,
-      nodeName: type,
-      attributes: newProps,
-      children: flatDeep(children, Infinity).map((child) => {
-        return child instanceof Object ? child : createTextElement(child);
-      }),
-      type,
-    };
-  };
-
-  const createTextElement = (text: string | number) => {
-    return {
-      nodeName: "TEXT_ELEMENT",
-      attributes: {
-        nodeValue: text,
-      },
-      children: [],
-    };
-  };
-
-  const updateFunctionComponent = (fiber: any) => {
-    wipFiber = fiber;
-    statesIdx = 0;
-    effectsIdx = 0;
-    refsIdx = 0;
-
-    const node = fiber.nodeName(fiber.attributes, fiber.children);
-    const children = [isV2VNode(node) ? versionDown(node) : node];
-    reconcileChildren(fiber, children);
-  };
-
-  const updateHostComponent = (fiber: any) => {
-    reconcileChildren(fiber, fiber.children);
-  };
-
-  const reconcileChildren = (wipFiber: any, elements: any) => {
+  const reconcileChildren = (wipFiber: Fiber, elements: Fiber[]): Fiber => {
     let index = 0;
-    let oldFiber = wipFiber.alternate && wipFiber.alternate.child;
-    let prevSibling: any = null;
+    let oldFiber = wipFiber?.alternate?.child;
+    let prevSibling: Fiber | undefined;
 
-    while (index < elements.length || oldFiber != null) {
+    while (index < elements.length || !isEmpty(oldFiber)) {
       const element = elements[index];
-      let newFiber: any = null;
+      let newFiber: Fiber | undefined;
 
-      const newType = element && !oldFiber;
       const sameType =
-        oldFiber &&
         element &&
-        element.nodeName === oldFiber.nodeName &&
-        element.key === oldFiber.key;
+        oldFiber &&
+        element.type === oldFiber.type &&
+        element.props.key === oldFiber.props.key;
 
-      if (newType) {
+      if (sameType) {
         newFiber = {
-          key: element.key,
-          nodeName: element.nodeName,
-          attributes: element.attributes,
-          children: element.children,
-          parent: wipFiber,
-          alternate: null,
-          effectTag: "CREATE",
-        };
-      } else if (sameType) {
-        newFiber = {
-          key: oldFiber.key,
-          nodeName: oldFiber.nodeName,
-          attributes: element.attributes,
-          children: element.children,
+          type: element.type,
+          props: element.props,
           parent: wipFiber,
           alternate: oldFiber,
-          effectTag: "UPDATE",
+          effectTag: EffectTag.Update,
         };
-      } else {
-        const oldParentFiberChildren = wipFiber.alternate.children;
-        const nowParentFiberChildren = wipFiber.children;
+      }
 
-        const deleteType =
-          oldParentFiberChildren.length > nowParentFiberChildren.length;
-        const addType =
-          oldParentFiberChildren.length < nowParentFiberChildren.length;
-        const changeType =
-          oldParentFiberChildren.length === nowParentFiberChildren.length;
+      if (element && !sameType) {
+        newFiber = {
+          type: element.type,
+          props: element.props,
+          parent: wipFiber,
+          effectTag: EffectTag.Placement,
+        };
+      }
 
-        if (addType) {
-          newFiber = {
-            key: element.key,
-            nodeName: element.nodeName,
-            attributes: element.attributes,
-            children: element.children,
-            parent: wipFiber,
-            alternate: null,
-            effectTag: "CREATE",
-          };
-        }
-        if (changeType) {
-          newFiber = {
-            key: element.key,
-            nodeName: element.nodeName,
-            attributes: element.attributes,
-            parent: wipFiber,
-            children: element.children,
-            alternate: null,
-            effectTag: "CHANGE",
-          };
-          oldFiber.effectTag = "DELETION";
-          deletions.push(oldFiber);
-        }
-        if (deleteType) {
-          oldFiber.effectTag = "DELETION";
-          deletions.push(oldFiber);
-        }
+      if (oldFiber && !sameType) {
+        const newDeletion = {
+          ...oldFiber,
+          sibling: undefined,
+          effectTag: EffectTag.Deletion,
+        };
+        deletions.push(newDeletion);
       }
 
       if (oldFiber) {
@@ -189,81 +114,51 @@ const React = (() => {
         prevSibling.sibling = newFiber;
       }
 
-      if (wipFiber.nodeName instanceof Function) {
-        let targetFiber = wipFiber.parent;
-        let changeFiber = wipFiber;
-        while (targetFiber.nodeName instanceof Function) {
-          targetFiber = targetFiber.parent;
-          changeFiber = targetFiber;
-        }
-        const index = targetFiber.children.findIndex(
-          (child: any) => child === changeFiber || child === wipFiber
-        );
-        targetFiber.children[index] = wipFiber.child;
-      } else if (
-        newFiber?.nodeName === "TEXT_ELEMENT" &&
-        typeof newFiber?.attributes.nodeValue !== "boolean"
-      ) {
-        elements[index] = newFiber.attributes.nodeValue;
-      } else if (
-        newFiber?.nodeName === "TEXT_ELEMENT" &&
-        typeof newFiber?.attributes.nodeValue === "boolean"
-      ) {
-        elements[index] = "";
-      } else {
-        elements[index] = newFiber;
-      }
-
       prevSibling = newFiber;
-
       index++;
     }
+
+    return wipFiber;
   };
 
-  const performUnitOfWork = (fiber: any) => {
-    const isFunctionComponent = fiber.nodeName instanceof Function;
-    if (isFunctionComponent) {
-      updateFunctionComponent(fiber);
+  const updateComponent = (fiber: Fiber): [Fiber, Fiber[]] => {
+    wipFiber = fiber;
+    statesIdx = 0;
+    effectsIdx = 0;
+    refsIdx = 0;
+
+    const { children, ...attributes } = fiber.props;
+
+    if (fiber.type instanceof Function) {
+      const newChildren = createChildrenElement([
+        fiber.type(attributes, children),
+      ]);
+      return [fiber, newChildren];
     } else {
-      updateHostComponent(fiber);
+      fiber.dom = createDom(fiber);
+      return [fiber, children];
     }
+  };
 
-    if (fiber.child) {
-      return fiber.child;
-    }
+  const performUnitOfWork = (fiber: Fiber): Fiber | undefined => {
+    const [wipFiber, elements] = updateComponent(fiber);
+    const newFiber = reconcileChildren(wipFiber, elements);
 
-    let nextFiber = fiber;
-    while (nextFiber) {
-      if (nextFiber.sibling) {
-        return nextFiber.sibling;
+    let nextFiber: Fiber | undefined = newFiber;
+
+    if (newFiber.child) {
+      nextFiber = newFiber.child;
+    } else {
+      while (nextFiber) {
+        if (nextFiber.sibling) {
+          nextFiber = nextFiber.sibling;
+          break;
+        }
+        nextFiber = nextFiber.parent;
       }
-      nextFiber = nextFiber.parent;
-    }
-  };
-
-  const commitWork = (fiber: any) => {
-    if (!fiber) {
-      return;
     }
 
-    if (fiber.hook) {
-      fiber.hook.effects.forEach((effect: any) => {
-        effect.effectCallback && effect.effectCallback();
-      });
-    }
-
-    commitWork(fiber.child);
-    commitWork(fiber.sibling);
-  };
-
-  const commitRoot = () => {
-    deletions.forEach((fiber: any) => {
-      fiber.sibling = undefined;
-      commitWork(fiber);
-    });
-    currentRoot = wipRoot;
-    wipRoot = null;
-    deletions = [];
+    return nextFiber;
   };
 
   const workLoop = () => {
@@ -271,127 +166,65 @@ const React = (() => {
       nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     }
 
-    if (!nextUnitOfWork && wipRoot) {
-      commitRoot();
-    }
+    commitRoot();
   };
 
-  const initView = (view: JSX.Element) => {
-    wipRoot = {
-      attributes: {},
-      children: [view],
-      alternate: currentRoot,
+  const createElement = (
+    type: ElType,
+    props: ElProps,
+    ...children: ElChildren
+  ): Fiber => ({
+    type,
+    props: {
+      ...props,
+      children: createChildrenElement(children),
+    },
+  });
+
+  const initView =
+    <State, Actions>(view: Fiber) =>
+    (state: State, actions: Actions) => {
+      wipRoot = {
+        type: ROOT_TYPE,
+        props: {
+          children: [view],
+        },
+        alternate: currentRoot,
+      };
+
+      nextUnitOfWork = wipRoot;
+
+      workLoop();
+
+      currentRoot = wipRoot;
+      wipRoot = undefined;
+      nextUnitOfWork = undefined;
+      wipFiber = undefined;
+      statesIdx = 0;
+      effectsIdx = 0;
+      refsIdx = 0;
+      deletions = [];
+
+      console.log(currentRoot);
+
+      return currentRoot.dom;
     };
-
-    nextUnitOfWork = wipRoot;
-
-    workLoop();
-
-    return currentRoot.children[0];
-  };
 
   const initActions = <State, Actions>(
     actions: ActionsType<State, Actions>
-  ): ActionsType<State, Actions> => {
-    return {
-      ...actions,
-      __change: () => (state) => ({ ...state }),
-      __getState: () => (state) => state,
-    };
-  };
+  ): ActionsType<State, Actions> => ({
+    ...actions,
+    __setState: () => (state) => ({ ...state }),
+    __getState: () => (state) => state,
+  });
 
   const render = <State, Actions>(
     state: State,
     actions: ActionsType<State, Actions>,
-    view: JSX.Element,
+    view: Fiber,
     container: Element | null
   ) => {
-    rootActions = app<State, Actions>(
-      state,
-      initActions(actions),
-      () => initView(view),
-      container
-    );
-  };
-
-  const getHook = <StateValue, RefValue, EffectValue>(): Hook<
-    StateValue,
-    RefValue,
-    EffectValue
-  > => {
-    const nowHook: Hook<StateValue, RefValue, EffectValue> = wipFiber.hook;
-    const oldHook: Hook<StateValue, RefValue, EffectValue> =
-      wipFiber?.alternate?.hook;
-    const newHook: Hook<StateValue, RefValue, EffectValue> = {
-      states: [],
-      effects: [],
-      refs: [],
-    };
-
-    return nowHook || oldHook || newHook;
-  };
-
-  const useState = <Value>(
-    initValue: Value
-  ): [value: Value, setState: (newValue: Value) => void] => {
-    const hook = getHook();
-    wipFiber.hook = hook;
-
-    const _statesIdx = statesIdx++;
-    const _states = wipFiber.hook.states;
-
-    const setState = (newValue: Value, flag = true) => {
-      if (flag && _states[_statesIdx] === newValue) {
-        return;
-      }
-
-      _states[_statesIdx] = newValue;
-
-      flag && rootActions.__change();
-    };
-    isEmpty(_states, _statesIdx) && setState(initValue, false);
-
-    const _state = _states[_statesIdx];
-    return [_state, setState];
-  };
-
-  const useEffect = <Value>(effect: Function, depArray: Array<Value>) => {
-    const hook = getHook();
-    wipFiber.hook = hook;
-
-    const _effectsIdx = effectsIdx++;
-    const _effects = wipFiber.hook.effects;
-    let newEffect: Effect<Value> = { depArray };
-
-    let hasChange = true;
-
-    if (!isEmpty(_effects, _effectsIdx)) {
-      newEffect.effectCallback = _effects[_effectsIdx].effectCallback;
-
-      const oldDepArray = _effects[_effectsIdx].depArray;
-      hasChange = depArray.some((dep, i) => !Object.is(dep, oldDepArray[i]));
-    }
-
-    if (hasChange) {
-      setTimeout(async () => {
-        newEffect.effectCallback = await effect();
-      });
-    }
-
-    _effects[_effectsIdx] = newEffect;
-  };
-
-  const useRef = <Value>(value: Value): Ref<Value> => {
-    const hook = getHook();
-    wipFiber.hook = hook;
-
-    const _refsIdx = refsIdx++;
-    const _refs = wipFiber.hook.refs;
-    const newRef: Ref<Value> = { current: value };
-
-    isEmpty(_refs, _refsIdx) && (_refs[_refsIdx] = newRef);
-
-    return _refs[_refsIdx];
+    rootActions = app(state, initActions(actions), initView(view), container);
   };
 
   const getState = (selector?: (state: any) => any): any => {
@@ -400,11 +233,106 @@ const React = (() => {
   };
 
   const getActions = (selector?: (state: any) => any): any => {
-    return selector ? selector(rootActions) : rootActions;
+    const { __getState, __setState, ...actions } = rootActions;
+    return selector ? selector(rootActions) : actions;
   };
 
-  const Fragment = (attributes: any, children: any[]) => {
-    return createElement("", attributes, ...children);
+  const getHook = <StateValue, RefValue, EffectValue>(): Hook<
+    StateValue,
+    RefValue,
+    EffectValue
+  > => {
+    const nowHook = wipFiber?.hook;
+    const oldHook = wipFiber?.alternate?.hook;
+    const newHook = {
+      states: [],
+      effects: [],
+      refs: [],
+    };
+
+    return oldHook ?? nowHook ?? newHook;
+  };
+
+  const useState = <Value>(
+    initValue: Value
+  ): [Value, (newValue: Value) => void] => {
+    if (!wipFiber) {
+      return [initValue, () => {}];
+    }
+
+    const hook = getHook();
+    wipFiber.hook = hook;
+
+    const __statesIdx = statesIdx++;
+    const __states = wipFiber.hook.states;
+
+    const setState = (newValue: Value, flag = true) => {
+      if (__states[statesIdx] === newValue) {
+        return;
+      }
+
+      __states[__statesIdx] = newValue;
+
+      flag && rootActions.__setState();
+    };
+
+    isEmptyArrIndex(__states, __statesIdx) &&
+      (__states[__statesIdx] = initValue);
+
+    const __state = __states[__statesIdx];
+
+    return [__state, setState];
+  };
+
+  const useEffect = <Value>(effect: Function, depArray: Array<Value>): void => {
+    if (!wipFiber) {
+      return;
+    }
+
+    const hook = getHook();
+    wipFiber.hook = hook;
+
+    const __effectsIdx = effectsIdx++;
+    const __effects = wipFiber.hook.effects;
+    const newEffect: Effect<Value> = { depArray };
+
+    let hasChange = true;
+
+    if (!isEmptyArrIndex(__effects, __effectsIdx)) {
+      newEffect.effectCallback = __effects[__effectsIdx].effectCallback;
+
+      const oldDepArray = __effects[__effectsIdx].depArray;
+      hasChange = depArray.some((dep, i) => !Object.is(dep, oldDepArray[i]));
+    }
+
+    if (hasChange) {
+      setTimeout(() => {
+        newEffect.effectCallback = effect();
+      });
+    }
+
+    __effects[__effectsIdx] = newEffect;
+  };
+
+  const useRef = <Value>(initValue: Value): Ref<Value> => {
+    if (!wipFiber) {
+      return { current: initValue };
+    }
+
+    const hook = getHook();
+    wipFiber.hook = hook;
+
+    const __refsIdx = refsIdx++;
+    const __refs = wipFiber.hook.refs;
+    const newRef: Ref<Value> = { current: initValue };
+
+    isEmptyArrIndex(__refs, __refsIdx) && (__refs[__refsIdx] = newRef);
+
+    return __refs[__refsIdx];
+  };
+
+  const Fragment = (props: ElProps, children: ElChildren) => {
+    return children;
   };
 
   return {
@@ -419,6 +347,5 @@ const React = (() => {
   };
 })();
 
-const { getState, getActions, useState, useEffect, useRef } = React;
-export { app, getState, getActions, useState, useEffect, useRef };
+export const { getState, getActions, useState, useEffect, useRef } = React;
 export default React;
