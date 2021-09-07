@@ -1,5 +1,5 @@
 import { TEXT_TYPE } from "./constants";
-import { V2, V1, Fiber } from "./module";
+import { V2, V1, Fiber } from "./type";
 import { flatDeep } from "./utils";
 
 export const isV2VNode = (el: { [key: string]: any }): el is V2 => {

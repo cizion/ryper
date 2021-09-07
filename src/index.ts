@@ -2,15 +2,7 @@ import { ActionsType, app } from "../../hyperapp";
 import { EffectTag, ROOT_TYPE } from "./constants";
 import { createDom } from "./dom";
 import { createChildrenElement } from "./fiber";
-import {
-  ElChildren,
-  ElProps,
-  ElType,
-  Fiber,
-  Hook,
-  Effect,
-  Ref,
-} from "./module";
+import { ElChildren, ElProps, ElType, Fiber, Hook, Effect, Ref } from "./type";
 import { isEmpty, isEmptyArrIndex } from "./utils";
 
 const React = (() => {
@@ -183,7 +175,7 @@ const React = (() => {
 
   const initView =
     <State, Actions>(view: Fiber) =>
-    (state: State, actions: Actions) => {
+    (_state: State, _actions: Actions) => {
       wipRoot = {
         type: ROOT_TYPE,
         props: {
@@ -204,8 +196,6 @@ const React = (() => {
       effectsIdx = 0;
       refsIdx = 0;
       deletions = [];
-
-      console.log(currentRoot);
 
       return currentRoot.dom;
     };
@@ -306,8 +296,8 @@ const React = (() => {
     }
 
     if (hasChange) {
-      setTimeout(() => {
-        newEffect.effectCallback = effect();
+      setTimeout(async () => {
+        newEffect.effectCallback = await effect();
       });
     }
 
@@ -331,7 +321,7 @@ const React = (() => {
     return __refs[__refsIdx];
   };
 
-  const Fragment = (props: ElProps, children: ElChildren) => {
+  const Fragment = (_props: ElProps, children: ElChildren) => {
     return children;
   };
 

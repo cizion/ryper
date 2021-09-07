@@ -1,10 +1,6 @@
 import { EffectTag } from "./constants";
 
 declare global {
-  interface Window {
-    requestIdleCallback: Function;
-    cancelIdleCallback: Function;
-  }
   namespace JSX {
     interface Element extends Fiber {}
     // interface IntrinsicElements {
@@ -13,14 +9,14 @@ declare global {
   }
 }
 
-interface Ref<Value> {
+export interface Ref<Value> {
   current: Value;
 }
-interface Effect<Value> {
+export interface Effect<Value> {
   depArray: Array<Value>;
   effectCallback?: Function;
 }
-interface Hook<StateValue, RefValue, EffectValue> {
+export interface Hook<StateValue, RefValue, EffectValue> {
   states: Array<StateValue>;
   refs: Array<Ref<RefValue>>;
   effects: Array<Effect<EffectValue>>;

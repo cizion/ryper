@@ -1,5 +1,5 @@
 import { TEXT_TYPE } from "./constants";
-import { Fiber } from "./module";
+import { Fiber } from "./type";
 
 export const createTextDom = (fiber: Fiber): any => {
   return fiber.props.nodeValue;
