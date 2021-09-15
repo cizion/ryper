@@ -197,8 +197,6 @@ const React = (() => {
       refsIdx = 0;
       deletions = [];
 
-      console.log(currentRoot);
-
       return currentRoot.dom;
     };
 
