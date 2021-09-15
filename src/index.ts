@@ -197,6 +197,8 @@ const React = (() => {
       refsIdx = 0;
       deletions = [];
 
+      console.log(currentRoot);
+
       return currentRoot.dom;
     };
 
@@ -257,7 +259,7 @@ const React = (() => {
     const __states = wipFiber.hook.states;
 
     const setState = (newValue: Value, flag = true) => {
-      if (__states[statesIdx] === newValue) {
+      if (__states[__statesIdx] === newValue) {
         return;
       }
 
