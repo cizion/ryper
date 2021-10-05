@@ -1,8 +1,9 @@
 import { TEXT_TYPE } from "./constants";
 import { Fiber } from "./type";
+import { isBoolean } from "./utils";
 
 export const createTextDom = (fiber: Fiber): any => {
-  return fiber.props.nodeValue;
+  return isBoolean(fiber.props.nodeValue) ? "" : fiber.props.nodeValue;
 };
 
 export const createElementDom = (fiber: Fiber): any => {
