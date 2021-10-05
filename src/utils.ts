@@ -1,5 +1,5 @@
 export const isEmpty = (value: any): value is undefined | null => {
-  return !(value != null && value !== true && value !== false);
+  return value === null || value === undefined;
 };
 
 export const isEmptyArrIndex = (arr: Array<any>, index: number): boolean => {
