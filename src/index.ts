@@ -181,6 +181,13 @@ const React = (() => {
     },
   });
 
+  const cloneElement = (el: Fiber, props: ElProps): Fiber => {
+    return {
+      ...el,
+      props: { ...el.props, props },
+    };
+  };
+
   const initView =
     <State, Actions>(view: Fiber) =>
     (_state: State, _actions: Actions) => {
@@ -392,6 +399,7 @@ const React = (() => {
     getState,
     getActions,
     createElement,
+    cloneElement,
     render,
     useState,
     useEffect,
