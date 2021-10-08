@@ -181,12 +181,18 @@ const React = (() => {
     },
   });
 
-  const cloneElement = (el: Fiber, props: ElProps): Fiber => {
-    return {
-      ...el,
-      props: { ...el.props, props },
-    };
-  };
+  const cloneElement = (
+    el: Fiber,
+    props: ElProps,
+    children: ElChildren = []
+  ): Fiber => ({
+    ...el,
+    props: {
+      ...el.props,
+      ...props,
+      children: el.props.children || createChildrenElement(children),
+    },
+  });
 
   const initView =
     <State, Actions>(view: Fiber) =>
