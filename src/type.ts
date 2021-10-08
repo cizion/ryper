@@ -20,16 +20,16 @@ export interface Memo<Value> {
   depArray: Array<any>;
   computed: Value;
 }
-export interface Callback {
+export interface Callback<Value> {
   depArray: Array<any>;
-  hooksCallback: Function;
+  hooksCallback: Value;
 }
-export interface Hook<StateValue, RefValue, MemoValue> {
+export interface Hook<StateValue, RefValue, MemoValue, CallbackValue> {
   states: Array<StateValue>;
   refs: Array<Ref<RefValue>>;
   effects: Array<Effect>;
   memos: Array<Memo<MemoValue>>;
-  callbacks: Array<Callback>;
+  callbacks: Array<CallbackValue>;
 }
 
 export type ElType = string | Function;
@@ -65,5 +65,5 @@ export interface Fiber {
   sibling?: Fiber;
   effectTag?: EffectTag;
   dom?: any;
-  hook?: Hook<any, any, any>;
+  hook?: Hook<any, any, any, any>;
 }

@@ -233,10 +233,11 @@ const React = (() => {
     return selector ? selector(rootActions) : actions;
   };
 
-  const getHook = <StateValue, RefValue, MemoValue>(): Hook<
+  const getHook = <StateValue, RefValue, MemoValue, CallbackValue>(): Hook<
     StateValue,
     RefValue,
-    MemoValue
+    MemoValue,
+    CallbackValue
   > => {
     const nowHook = wipFiber?.hook;
     const oldHook = wipFiber?.alternate?.hook;
@@ -355,10 +356,10 @@ const React = (() => {
     return __memos[__memosIdx].computed;
   };
 
-  const useCallback = (
-    hooksCallback: Function,
+  const useCallback = <Value>(
+    hooksCallback: Value,
     depArray: Array<any>
-  ): Function => {
+  ): Value => {
     if (!wipFiber) {
       return hooksCallback;
     }
