@@ -12,14 +12,24 @@ declare global {
 export interface Ref<Value> {
   current: Value;
 }
-export interface Effect<Value> {
-  depArray: Array<Value>;
-  effectCallback?: Function;
+export interface Effect {
+  depArray: Array<any>;
+  returnCallback?: Function;
 }
-export interface Hook<StateValue, RefValue, EffectValue> {
+export interface Memo<Value> {
+  depArray: Array<any>;
+  computed: Value;
+}
+export interface Callback {
+  depArray: Array<any>;
+  hooksCallback: Function;
+}
+export interface Hook<StateValue, RefValue, MemoValue> {
   states: Array<StateValue>;
   refs: Array<Ref<RefValue>>;
-  effects: Array<Effect<EffectValue>>;
+  effects: Array<Effect>;
+  memos: Array<Memo<MemoValue>>;
+  callbacks: Array<Callback>;
 }
 
 export type ElType = string | Function;

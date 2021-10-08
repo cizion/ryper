@@ -2,7 +2,7 @@ import { ActionsType, app } from "../../hyperapp";
 import { EffectTag, ROOT_TYPE } from "./constants";
 import { createDom } from "./dom";
 import { createChildrenElement } from "./fiber";
-import { ElChildren, ElProps, ElType, Fiber, Hook, Effect, Ref } from "./type";
+import { ElChildren, ElProps, ElType, Fiber, Hook, Ref } from "./type";
 import { isEmpty, isEmptyArrIndex } from "./utils";
 
 const React = (() => {
@@ -14,7 +14,17 @@ const React = (() => {
   let statesIdx = 0;
   let effectsIdx = 0;
   let refsIdx = 0;
+  let memosIdx = 0;
+  let callbacksIdx = 0;
   let deletions: Fiber[] = [];
+
+  const resetIdx = () => {
+    statesIdx = 0;
+    effectsIdx = 0;
+    refsIdx = 0;
+    memosIdx = 0;
+    callbacksIdx = 0;
+  };
 
   const commitWork = (fiber?: Fiber) => {
     if (!fiber) {
@@ -41,7 +51,7 @@ const React = (() => {
     }
 
     fiber.hook?.effects.forEach((effect: any) => {
-      effect.effectCallback && effect.effectCallback();
+      effect.returnCallback && effect.returnCallback();
     });
 
     commitDeletion(fiber.child);
@@ -115,9 +125,7 @@ const React = (() => {
 
   const updateComponent = (fiber: Fiber): [Fiber, Fiber[]] => {
     wipFiber = fiber;
-    statesIdx = 0;
-    effectsIdx = 0;
-    refsIdx = 0;
+    resetIdx();
 
     const { children, ...attributes } = fiber.props;
 
@@ -192,10 +200,8 @@ const React = (() => {
       wipRoot = undefined;
       nextUnitOfWork = undefined;
       wipFiber = undefined;
-      statesIdx = 0;
-      effectsIdx = 0;
-      refsIdx = 0;
       deletions = [];
+      resetIdx();
 
       return currentRoot.dom;
     };
@@ -227,10 +233,10 @@ const React = (() => {
     return selector ? selector(rootActions) : actions;
   };
 
-  const getHook = <StateValue, RefValue, EffectValue>(): Hook<
+  const getHook = <StateValue, RefValue, MemoValue>(): Hook<
     StateValue,
     RefValue,
-    EffectValue
+    MemoValue
   > => {
     const nowHook = wipFiber?.hook;
     const oldHook = wipFiber?.alternate?.hook;
@@ -238,6 +244,8 @@ const React = (() => {
       states: [],
       effects: [],
       refs: [],
+      memos: [],
+      callbacks: [],
     };
 
     return oldHook ?? nowHook ?? newHook;
@@ -274,7 +282,7 @@ const React = (() => {
     return [__state, setState];
   };
 
-  const useEffect = <Value>(effect: Function, depArray: Array<Value>): void => {
+  const useEffect = (effect: Function, depArray: Array<any>): void => {
     if (!wipFiber) {
       return;
     }
@@ -284,24 +292,21 @@ const React = (() => {
 
     const __effectsIdx = effectsIdx++;
     const __effects = wipFiber.hook.effects;
-    const newEffect: Effect<Value> = { depArray };
 
     let hasChange = true;
 
     if (!isEmptyArrIndex(__effects, __effectsIdx)) {
-      newEffect.effectCallback = __effects[__effectsIdx].effectCallback;
-
       const oldDepArray = __effects[__effectsIdx].depArray;
       hasChange = depArray.some((dep, i) => !Object.is(dep, oldDepArray[i]));
     }
 
     if (hasChange) {
+      __effects[__effectsIdx] = { depArray };
+
       setTimeout(async () => {
-        newEffect.effectCallback = await effect();
+        __effects[__effectsIdx].returnCallback = await effect();
       });
     }
-
-    __effects[__effectsIdx] = newEffect;
   };
 
   const useRef = <Value>(initValue: Value): Ref<Value> => {
@@ -314,11 +319,68 @@ const React = (() => {
 
     const __refsIdx = refsIdx++;
     const __refs = wipFiber.hook.refs;
-    const newRef: Ref<Value> = { current: initValue };
 
-    isEmptyArrIndex(__refs, __refsIdx) && (__refs[__refsIdx] = newRef);
+    isEmptyArrIndex(__refs, __refsIdx) &&
+      (__refs[__refsIdx] = { current: initValue });
 
     return __refs[__refsIdx];
+  };
+
+  const useMemo = <Value>(
+    compute: () => Value,
+    depArray: Array<any>
+  ): Value => {
+    if (!wipFiber) {
+      return compute();
+    }
+
+    const hook = getHook();
+    wipFiber.hook = hook;
+
+    const __memosIdx = memosIdx++;
+    const __memos = wipFiber.hook.memos;
+
+    let hasChange = true;
+
+    if (!isEmptyArrIndex(__memos, __memosIdx)) {
+      const oldDepArray = __memos[__memosIdx].depArray;
+      hasChange = depArray.some((dep, i) => !Object.is(dep, oldDepArray[i]));
+    }
+
+    if (hasChange) {
+      const computed = compute();
+      __memos[__memosIdx] = { depArray, computed };
+    }
+
+    return __memos[__memosIdx].computed;
+  };
+
+  const useCallback = (
+    hooksCallback: Function,
+    depArray: Array<any>
+  ): Function => {
+    if (!wipFiber) {
+      return hooksCallback;
+    }
+
+    const hook = getHook();
+    wipFiber.hook = hook;
+
+    const __callbacksIdx = callbacksIdx++;
+    const __callbacks = wipFiber.hook.callbacks;
+
+    let hasChange = true;
+
+    if (!isEmptyArrIndex(__callbacks, __callbacksIdx)) {
+      const oldDepArray = __callbacks[__callbacksIdx].depArray;
+      hasChange = depArray.some((dep, i) => !Object.is(dep, oldDepArray[i]));
+    }
+
+    if (hasChange) {
+      __callbacks[__callbacksIdx] = { depArray, hooksCallback };
+    }
+
+    return __callbacks[__callbacksIdx].hooksCallback;
   };
 
   const Fragment = (_props: ElProps, children: ElChildren) => {
@@ -333,9 +395,19 @@ const React = (() => {
     useState,
     useEffect,
     useRef,
+    useMemo,
+    useCallback,
     Fragment,
   };
 })();
 
-export const { getState, getActions, useState, useEffect, useRef } = React;
+export const {
+  getState,
+  getActions,
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} = React;
 export default React;
